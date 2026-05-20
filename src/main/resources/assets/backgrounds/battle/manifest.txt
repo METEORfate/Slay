@@ -1,0 +1,4 @@
+# Battle background manifest.
+# Add one image filename per line. Paths are relative to this directory.
+# Supported by JavaFX Image: png, jpg, jpeg, gif, bmp.
+gothic-citadel.png
