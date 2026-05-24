@@ -40,7 +40,19 @@ class StarterDeckFactoryTest {
                 CardFactory.stormOfCinders(),
                 CardFactory.sentinelOath(),
                 CardFactory.quickRead(),
-                CardFactory.emberSurge()
+                CardFactory.emberSurge(),
+                CardFactory.bloodletting(),
+                CardFactory.comboPunch(),
+                CardFactory.perfectStrike(),
+                CardFactory.tacticalMaster(),
+                CardFactory.silence(),
+                CardFactory.bodySlam(),
+                CardFactory.entrench(),
+                CardFactory.enrage(),
+                CardFactory.bladeSurge(),
+                CardFactory.vampiricStrike(),
+                CardFactory.backstab(),
+                CardFactory.advance()
         );
 
         for (Card card : cards) {
@@ -49,9 +61,23 @@ class StarterDeckFactoryTest {
             assertTrue(upgraded.isUpgraded(), upgraded.getName());
             assertFalse(CardFactory.canUpgrade(upgraded), upgraded.getName());
             assertTrue(upgraded.getName().endsWith("+"), upgraded.getName());
+            assertEquals(card.getRarity(), upgraded.getRarity(), card.getName());
         }
 
         assertEquals("造成 9 点伤害。", CardFactory.upgradeOf(CardFactory.emberStrike()).getDescription());
         assertEquals("获得 1 点能量，抽 1 张牌。", CardFactory.upgradeOf(CardFactory.sparkFocus()).getDescription());
+        assertEquals(2, CardFactory.silence().getCost());
+    }
+
+    @Test
+    void cardsExposeFrontEndRarityTemplates() {
+        assertEquals(CardRarity.COMMON, CardFactory.emberStrike().getRarity());
+        assertEquals(CardRarity.COMMON, CardFactory.bloodletting().getRarity());
+        assertEquals(CardRarity.COMMON, CardFactory.bladeSurge().getRarity());
+        assertEquals(CardRarity.UNCOMMON, CardFactory.dawnBreaker().getRarity());
+        assertEquals(CardRarity.UNCOMMON, CardFactory.tacticalMaster().getRarity());
+        assertEquals(CardRarity.UNCOMMON, CardFactory.enrage().getRarity());
+        assertEquals(CardRarity.RARE, CardFactory.stormOfCinders().getRarity());
+        assertEquals(CardRarity.RARE, CardFactory.silence().getRarity());
     }
 }

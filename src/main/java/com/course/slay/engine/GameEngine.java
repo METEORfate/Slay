@@ -6,6 +6,7 @@ import com.course.slay.domain.GameStatus;
 import com.course.slay.domain.Player;
 import com.course.slay.domain.card.Card;
 import com.course.slay.domain.card.CardFactory;
+import com.course.slay.domain.card.CardRarity;
 import com.course.slay.domain.card.CardVisualEffect;
 import com.course.slay.domain.card.EffectContext;
 import com.course.slay.domain.character.CharacterCatalog;
@@ -31,9 +32,14 @@ public class GameEngine {
     public static final int NORMAL_COMBAT_GOLD = 12;
     public static final int ELITE_COMBAT_GOLD = 25;
     public static final int SKIP_REWARD_GOLD = 5;
-    public static final int REST_HEAL_AMOUNT = 18;
+    public static final int REST_HEAL_PERCENT = 30;
     public static final int SHOP_CARD_PRICE = 35;
     public static final int SHOP_REMOVE_CARD_PRICE = 50;
+    private static final List<RarityWeight> REWARD_RARITY_WEIGHTS = List.of(
+            new RarityWeight(CardRarity.COMMON, 60),
+            new RarityWeight(CardRarity.UNCOMMON, 30),
+            new RarityWeight(CardRarity.RARE, 10)
+    );
 
     private final Random random;
     private BattleState state;
@@ -111,11 +117,13 @@ public class GameEngine {
         runState.setCurrentNode(node);
         runState.addLog("进入节点：" + node.getName() + "（" + node.getType().getDisplayName() + "）。");
         if (node.getType() == MapNodeType.REST) {
+            state = null;
             runState.setPhase(RunPhase.REST_SITE);
-            runState.addLog("抵达营地：可以休息恢复生命，或升级一张牌。");
+            runState.addLog("抵达营地：可以休息恢复最大生命的 " + REST_HEAL_PERCENT + "%，或升级一张牌。");
             return true;
         }
         if (node.getType() == MapNodeType.EVENT) {
+            state = null;
             resolveEventNode();
             if (runState.getPhase() == RunPhase.RUN_DEFEAT) {
                 return true;
@@ -124,6 +132,7 @@ public class GameEngine {
             return true;
         }
         if (node.getType() == MapNodeType.SHOP) {
+            state = null;
             runState.setShopCards(createRewardChoices(3));
             runState.setPhase(RunPhase.SHOP);
             runState.addLog("进入商店：可以购买卡牌、删牌或直接离开。");
@@ -176,8 +185,16 @@ public class GameEngine {
         state.getHand().remove(handIndex);
         state.addLog("打出【" + card.getName() + "】。");
         card.play(new PlayerEffectContext());
+        state.recordPlayedCard(card.getType());
         state.getDiscardPile().add(card);
 
+        if (!state.getPlayer().isAlive()) {
+            if (runState != null) {
+                runState.setPhase(RunPhase.RUN_DEFEAT);
+                runState.addLog("远征失败：生命耗尽。");
+            }
+            return true;
+        }
         if (!state.getEnemy().isAlive()) {
             completeVictory();
         }
@@ -248,11 +265,18 @@ public class GameEngine {
         if (!isAtRestSite()) {
             return false;
         }
-        int healed = runState.getPlayer().heal(REST_HEAL_AMOUNT);
+        int healed = runState.getPlayer().heal(restHealAmount(runState.getPlayer().getMaxHealth()));
         runState.getPlayer().resetBlock();
         runState.addLog("在营地休息，恢复 " + healed + " 点生命。");
         completeRunNode();
         return true;
+    }
+
+    public static int restHealAmount(int maxHealth) {
+        if (maxHealth <= 0) {
+            throw new IllegalArgumentException("maxHealth must be positive");
+        }
+        return Math.max(1, (int) Math.ceil(maxHealth * REST_HEAL_PERCENT / 100.0));
     }
 
     public boolean upgradeCardAtCamp(int deckIndex) {
@@ -349,12 +373,22 @@ public class GameEngine {
         enemy.resetBlock();
         enemy.setEnergy(0);
         state.addLog(enemy.getName() + " 回合开始，执行预告意图。");
+        if (state.consumeSkipNextEnemyTurn()) {
+            state.setEnemyIntent(null);
+            state.addLog(enemy.getName() + " 被沉默，跳过了本次行动。");
+            return List.of();
+        }
 
         EnemyAction action = enemy.takeNextAction();
         state.setEnemyIntent(null);
+        int beforePlayerHealth = state.getPlayer().getHealth();
         List<Set<CardVisualEffect>> visualEffects = List.of(
                 action.execute(enemy, state.getPlayer(), state::addLog)
         );
+        int healthDamage = Math.max(0, beforePlayerHealth - state.getPlayer().getHealth());
+        if (healthDamage > 0) {
+            applyOnDamageBuff();
+        }
 
         if (!state.getPlayer().isAlive()) {
             state.setStatus(GameStatus.DEFEAT);
@@ -399,7 +433,35 @@ public class GameEngine {
         int count = actor.getHand().size();
         actor.getDiscardPile().addAll(actor.getHand());
         actor.getHand().clear();
+        if (actor == state.getPlayer() && count > 0) {
+            applyDiscardEnergyBonus(count);
+        }
         return count;
+    }
+
+    private void applyDiscardEnergyBonus(int discardedCards) {
+        int energyPerCard = state.getEnergyPerDiscardThisTurn();
+        if (energyPerCard <= 0) {
+            return;
+        }
+        int gained = energyPerCard * discardedCards;
+        state.setEnergy(state.getEnergy() + gained);
+        state.addLog("弃掉 " + discardedCards + " 张牌，战术大师额外获得 " + gained + " 点能量。");
+    }
+
+    private void applyOnDamageBuff() {
+        int strength = state.getStrengthOnDamage();
+        int block = state.getBlockOnDamage();
+        if (strength <= 0 && block <= 0) {
+            return;
+        }
+        if (strength > 0) {
+            state.getPlayer().gainStrength(strength);
+        }
+        if (block > 0) {
+            state.getPlayer().gainBlock(block);
+        }
+        state.addLog("受伤触发：获得 " + strength + " 点力量和 " + block + " 点格挡。");
     }
 
     private void completeVictory() {
@@ -476,11 +538,13 @@ public class GameEngine {
 
     private List<Card> createRewardChoices(int count) {
         List<Card> pool = new ArrayList<>(currentRewardPool());
-        Collections.shuffle(pool, random);
-        return pool.stream()
-                .limit(count)
-                .map(CardFactory::copyOf)
-                .toList();
+        List<Card> choices = new ArrayList<>();
+        while (choices.size() < count && !pool.isEmpty()) {
+            Card selected = selectWeightedRewardCard(pool);
+            choices.add(CardFactory.copyOf(selected));
+            pool.removeIf(card -> card.getId().equals(selected.getId()));
+        }
+        return choices;
     }
 
     private Card randomRewardCard() {
@@ -488,7 +552,40 @@ public class GameEngine {
         if (pool.isEmpty()) {
             throw new IllegalStateException("reward pool must not be empty");
         }
-        return pool.get(random.nextInt(pool.size()));
+        return selectWeightedRewardCard(pool);
+    }
+
+    private Card selectWeightedRewardCard(List<Card> pool) {
+        CardRarity rarity = rollRewardRarity(pool);
+        List<Card> candidates = pool.stream()
+                .filter(card -> card.getRarity() == rarity)
+                .toList();
+        if (candidates.isEmpty()) {
+            candidates = pool;
+        }
+        return candidates.get(random.nextInt(candidates.size()));
+    }
+
+    private CardRarity rollRewardRarity(List<Card> pool) {
+        List<RarityWeight> availableWeights = REWARD_RARITY_WEIGHTS.stream()
+                .filter(weight -> pool.stream().anyMatch(card -> card.getRarity() == weight.rarity()))
+                .toList();
+        if (availableWeights.isEmpty()) {
+            return pool.get(random.nextInt(pool.size())).getRarity();
+        }
+
+        int totalWeight = availableWeights.stream()
+                .mapToInt(RarityWeight::weight)
+                .sum();
+        int roll = random.nextInt(totalWeight);
+        int cursor = 0;
+        for (RarityWeight weight : availableWeights) {
+            cursor += weight.weight();
+            if (roll < cursor) {
+                return weight.rarity();
+            }
+        }
+        return availableWeights.get(availableWeights.size() - 1).rarity();
     }
 
     private List<Card> currentRewardPool() {
@@ -503,7 +600,8 @@ public class GameEngine {
         public void dealDamageToOpponent(int amount) {
             int beforeHealth = state.getEnemy().getHealth();
             int beforeBlock = state.getEnemy().getBlock();
-            state.getEnemy().takeDamage(amount);
+            int totalDamage = amount + state.getPlayer().getStrength();
+            state.getEnemy().takeDamage(totalDamage);
             int blocked = Math.max(0, beforeBlock - state.getEnemy().getBlock());
             int healthDamage = Math.max(0, beforeHealth - state.getEnemy().getHealth());
             state.addLog("造成 " + healthDamage + " 点生命伤害，敌人格挡抵消 " + blocked + " 点。");
@@ -513,6 +611,16 @@ public class GameEngine {
         public void gainBlock(int amount) {
             state.getPlayer().gainBlock(amount);
             state.addLog("获得 " + amount + " 点格挡。");
+        }
+
+        @Override
+        public int currentBlock() {
+            return state.getPlayer().getBlock();
+        }
+
+        @Override
+        public boolean hasPlayedAttackThisTurn() {
+            return state.hasPlayedAttackThisTurn();
         }
 
         @Override
@@ -533,8 +641,48 @@ public class GameEngine {
         }
 
         @Override
+        public void gainStrength(int amount) {
+            state.getPlayer().gainStrength(amount);
+            state.addLog("获得 " + amount + " 点力量。");
+        }
+
+        @Override
+        public void gainPermanentStrength(int amount) {
+            state.getPlayer().gainPermanentStrength(amount);
+            state.addLog("永久获得 " + amount + " 点力量。");
+        }
+
+        @Override
+        public void loseHealth(int amount) {
+            int lost = state.getPlayer().loseHealth(amount);
+            state.addLog("失去 " + lost + " 点生命。");
+            if (!state.getPlayer().isAlive()) {
+                state.setStatus(GameStatus.DEFEAT);
+                state.addLog("你倒在远征途中。");
+            }
+        }
+
+        @Override
+        public void skipNextEnemyTurn() {
+            state.skipNextEnemyTurn();
+        }
+
+        @Override
+        public void addEnergyPerDiscardThisTurn(int amount) {
+            state.addEnergyPerDiscardThisTurn(amount);
+        }
+
+        @Override
+        public void addOnDamageBuff(int strength, int block) {
+            state.addOnDamageBuff(strength, block);
+        }
+
+        @Override
         public void log(String message) {
             state.addLog(message);
         }
+    }
+
+    private record RarityWeight(CardRarity rarity, int weight) {
     }
 }

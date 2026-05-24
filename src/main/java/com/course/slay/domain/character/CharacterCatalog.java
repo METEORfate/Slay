@@ -10,7 +10,7 @@ public final class CharacterCatalog {
     private static final List<PlayableCharacter> CHARACTERS = List.of(
             new PlayableCharacter(
                     "night_watch",
-                    "守夜人",
+                    "狂战士",
                     "均衡防守",
                     "稳定的攻击、格挡和过牌，适合熟悉基础远征节奏。",
                     72,
@@ -23,7 +23,7 @@ public final class CharacterCatalog {
                     "cinder_seeker",
                     "烬痕旅人",
                     "机动作战",
-                    "当前与守夜人复用同一套牌，后续可替换为更偏机动的初始牌和奖励池。",
+                    "当前与狂战士复用同一套牌，后续可替换为更偏机动的初始牌和奖励池。",
                     72,
                     3,
                     5,

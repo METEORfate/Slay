@@ -11,7 +11,7 @@ classDiagram
         -Stage stage
         +start(Stage stage)
         -createCharacterSelectView() BorderPane
-        -createRouteMap(RunState run) StackPane
+        -createRouteMap(RunState run) Pane
         -createRestSiteView() BorderPane
         -createShopView() BorderPane
         -createDeckView() BorderPane
@@ -32,7 +32,7 @@ classDiagram
         +int NORMAL_COMBAT_GOLD
         +int ELITE_COMBAT_GOLD
         +int SKIP_REWARD_GOLD
-        +int REST_HEAL_AMOUNT
+        +int REST_HEAL_PERCENT
         +int SHOP_CARD_PRICE
         +int SHOP_REMOVE_CARD_PRICE
         -BattleState state
@@ -47,6 +47,7 @@ classDiagram
         +endTurn() List
         +claimReward(int rewardIndex) boolean
         +skipReward() boolean
+        +restHealAmount(int maxHealth) int
         +restAtCamp() boolean
         +upgradeCardAtCamp(int deckIndex) boolean
         +buyShopCard(int shopIndex) boolean
@@ -189,6 +190,8 @@ classDiagram
         -String name
         -int cost
         -CardType type
+        -CardRarity rarity
+        -String description
         -boolean upgraded
         -CardEffect effect
         +play(EffectContext context) void
@@ -217,6 +220,7 @@ classDiagram
         +String id
         +String name
         +CardType type
+        +CardRarity rarity
         +int cost
         +String description
         +int count
@@ -234,13 +238,26 @@ classDiagram
         SHIELD
     }
 
+    class CardRarity {
+        <<enumeration>>
+        COMMON
+        UNCOMMON
+        RARE
+        LEGENDARY
+        SPECIAL
+    }
+
     class EffectContext {
         <<interface>>
         +dealDamageToOpponent(int amount) void
         +gainBlock(int amount) void
+        +currentBlock() int
         +drawCards(int amount) void
         +gainEnergy(int amount) void
         +healSelf(int amount) void
+        +loseHealth(int amount) void
+        +skipNextEnemyTurn() void
+        +addEnergyPerDiscardThisTurn(int amount) void
     }
 
     class DamageEffect
@@ -249,6 +266,12 @@ classDiagram
     class EnergyEffect
     class HealEffect
     class CompositeEffect
+    class CurrentBlockDamageEffect
+    class EnergyPerDiscardEffect
+    class HealthLossEffect
+    class RepeatedDamageEffect
+    class ScaleCurrentBlockEffect
+    class SkipEnemyTurnEffect
     class StarterDeckFactory
     class EnemyFactory
     class RouteMapFactory {
@@ -284,6 +307,7 @@ classDiagram
     EnemyAction --> EnemyIntent
     EnemyAction --> CardVisualEffect
     Combatant --> Card
+    Card --> CardRarity
     Card --> CardEffect
     Card --> CardVisualEffect
     DeckSummary --> Card
@@ -299,6 +323,12 @@ classDiagram
     EnergyEffect ..|> CardEffect
     HealEffect ..|> CardEffect
     CompositeEffect ..|> CardEffect
+    CurrentBlockDamageEffect ..|> CardEffect
+    EnergyPerDiscardEffect ..|> CardEffect
+    HealthLossEffect ..|> CardEffect
+    RepeatedDamageEffect ..|> CardEffect
+    ScaleCurrentBlockEffect ..|> CardEffect
+    SkipEnemyTurnEffect ..|> CardEffect
     CardFactory ..> Card
     StarterDeckFactory ..> CardFactory
     EnemyFactory ..> Enemy

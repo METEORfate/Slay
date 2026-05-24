@@ -51,13 +51,15 @@ public final class DeckSummary {
                             first.getId(),
                             first.getName(),
                             first.getType(),
+                            first.getRarity(),
                             first.getCost(),
                             first.getDescription(),
                             group.size()
                     );
                 })
                 .sorted(Comparator
-                        .comparing((CardEntry entry) -> entry.type().ordinal())
+                        .comparing((CardEntry entry) -> entry.rarity().ordinal())
+                        .thenComparing(entry -> entry.type().ordinal())
                         .thenComparingInt(CardEntry::cost)
                         .thenComparing(CardEntry::name))
                 .toList();
@@ -99,10 +101,10 @@ public final class DeckSummary {
             String id,
             String name,
             CardType type,
+            CardRarity rarity,
             int cost,
             String description,
             int count
     ) {
     }
 }
-

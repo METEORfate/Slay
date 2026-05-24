@@ -1,12 +1,12 @@
 package com.course.slay.domain.run;
 
 public enum MapNodeType {
-    NORMAL("普通战斗", "剑"),
-    ELITE("精英战斗", "冠"),
-    REST("营地休整", "火"),
-    EVENT("特殊事件", "?"),
-    SHOP("商店补给", "$"),
-    BOSS("首领战", "门");
+    NORMAL("敌人", "☠"),
+    ELITE("精英", "♛"),
+    REST("休息", "♨"),
+    EVENT("不明", "?"),
+    SHOP("商人", "$"),
+    BOSS("首领", "☠");
 
     private final String displayName;
     private final String iconText;

@@ -6,6 +6,7 @@ import com.course.slay.domain.GameStatus;
 import com.course.slay.domain.Player;
 import com.course.slay.domain.card.Card;
 import com.course.slay.domain.card.CardFactory;
+import com.course.slay.domain.card.CardRarity;
 import com.course.slay.domain.card.CardVisualEffect;
 import com.course.slay.domain.enemy.Enemy;
 import com.course.slay.domain.enemy.EnemyAction;
@@ -162,6 +163,198 @@ class GameEngineTest {
 
         assertEquals(GameStatus.REWARD_CLAIMED, state.getStatus());
         assertEquals(beforeDeckSize + 1, state.getDeck().size());
+    }
+
+    @Test
+    void rewardChoicesUseConfiguredRarityWeights() {
+        GameEngine engine = new GameEngine(new FixedRandom(0, 0, 60, 0, 90, 0));
+        BattleState state = engine.startBattle(
+                testPlayer(),
+                passiveEnemy(10),
+                List.of(CardFactory.dawnBreaker()),
+                false
+        );
+
+        assertTrue(engine.playCard(0));
+
+        assertEquals(CardRarity.COMMON, state.getRewardChoices().get(0).getRarity());
+        assertEquals(CardRarity.UNCOMMON, state.getRewardChoices().get(1).getRarity());
+        assertEquals(CardRarity.RARE, state.getRewardChoices().get(2).getRarity());
+    }
+
+    @Test
+    void bloodlettingGainsEnergyAndLosesHealthWithoutConsumingBlock() {
+        GameEngine engine = new GameEngine(new Random(1));
+        BattleState state = engine.startBattle(
+                testPlayer(),
+                passiveEnemy(30),
+                List.of(CardFactory.ironCurtain(), CardFactory.bloodletting()),
+                false
+        );
+
+        assertTrue(engine.playCard(0));
+        assertTrue(engine.playCard(0));
+
+        assertEquals(37, state.getPlayer().getHealth());
+        assertEquals(5, state.getPlayer().getBlock());
+        assertEquals(4, state.getEnergy());
+    }
+
+    @Test
+    void comboPunchResolvesAsSeparateHitsAgainstBlock() {
+        GameEngine engine = new GameEngine(new Random(1));
+        Enemy enemy = passiveEnemy(30);
+        enemy.gainBlock(3);
+        BattleState state = engine.startBattle(
+                testPlayer(),
+                enemy,
+                List.of(CardFactory.comboPunch()),
+                false
+        );
+
+        assertTrue(engine.playCard(0));
+
+        assertEquals(25, state.getEnemy().getHealth());
+        assertEquals(0, state.getEnemy().getBlock());
+    }
+
+    @Test
+    void bodySlamAndEntrenchUseCurrentBlock() {
+        GameEngine engine = new GameEngine(new Random(1));
+        BattleState state = engine.startBattle(
+                testPlayer(),
+                passiveEnemy(30),
+                List.of(CardFactory.ironCurtain(), CardFactory.entrench(), CardFactory.bodySlam()),
+                false
+        );
+
+        assertTrue(engine.playCard(0));
+        assertTrue(engine.playCard(0));
+        assertTrue(engine.playCard(0));
+
+        assertEquals(10, state.getPlayer().getBlock());
+        assertEquals(20, state.getEnemy().getHealth());
+    }
+
+    @Test
+    void silenceSkipsNextEnemyTurn() {
+        GameEngine engine = new GameEngine(new Random(1));
+        BattleState state = engine.startBattle(
+                testPlayer(),
+                attackerEnemy(8),
+                List.of(CardFactory.silence()),
+                false
+        );
+
+        assertTrue(engine.playCard(0));
+        engine.endTurn();
+
+        assertEquals(40, state.getPlayer().getHealth());
+        assertEquals(2, state.getTurnNumber());
+    }
+
+    @Test
+    void tacticalMasterRewardsCardsDiscardedThisTurn() {
+        GameEngine engine = new GameEngine(new Random(1));
+        BattleState state = engine.startBattle(
+                testPlayer(),
+                passiveEnemy(30),
+                List.of(CardFactory.tacticalMaster(), CardFactory.emberStrike(), CardFactory.ironCurtain()),
+                false
+        );
+
+        assertTrue(engine.playCard(0));
+        engine.endTurn();
+
+        assertTrue(state.getBattleLog().stream().anyMatch(line -> line.contains("额外获得 2 点能量")));
+    }
+
+    @Test
+    void cinderSeekerCardsApplyDamageHealingAndDrawEffects() {
+        GameEngine engine = new GameEngine(new Random(1));
+        Player player = testPlayer();
+        player.takeDamage(10);
+        BattleState state = engine.startBattle(
+                player,
+                passiveEnemy(40),
+                List.of(
+                        CardFactory.bladeSurge(),
+                        CardFactory.vampiricStrike(),
+                        CardFactory.emberStrike(),
+                        CardFactory.ironCurtain(),
+                        CardFactory.swiftStep(),
+                        CardFactory.backstab(),
+                        CardFactory.ashNeedle()
+                ),
+                false
+        );
+
+        assertTrue(engine.playCard(0));
+        assertEquals(6, state.getHand().size());
+        assertTrue(state.getHand().stream().anyMatch(card -> card.getId().equals("backstab")));
+
+        assertTrue(engine.playCard(0));
+        assertEquals(34, state.getPlayer().getHealth());
+        assertEquals(24, state.getEnemy().getHealth());
+    }
+
+    @Test
+    void backstabDoublesAfterAnotherAttackCardWasPlayed() {
+        GameEngine engine = new GameEngine(new Random(1));
+        BattleState state = engine.startBattle(
+                testPlayer(),
+                passiveEnemy(30),
+                List.of(CardFactory.emberStrike(), CardFactory.backstab()),
+                false
+        );
+
+        assertTrue(engine.playCard(0));
+        assertTrue(engine.playCard(0));
+
+        assertEquals(12, state.getEnemy().getHealth());
+    }
+
+    @Test
+    void enrageTriggersWhenPlayerTakesHealthDamage() {
+        GameEngine engine = new GameEngine(new Random(1));
+        BattleState state = engine.startBattle(
+                testPlayer(),
+                attackerEnemy(6),
+                List.of(CardFactory.enrage()),
+                false
+        );
+
+        assertTrue(engine.playCard(0));
+        engine.endTurn();
+
+        assertEquals(34, state.getPlayer().getHealth());
+        assertEquals(1, state.getPlayer().getStrength());
+        assertTrue(state.getBattleLog().stream().anyMatch(line -> line.contains("受伤触发")));
+    }
+
+    @Test
+    void advanceGrantsPermanentStrengthAcrossBattles() {
+        GameEngine engine = new GameEngine(new Random(1));
+        Player player = testPlayer();
+        BattleState firstBattle = engine.startBattle(
+                player,
+                passiveEnemy(30),
+                List.of(CardFactory.advance()),
+                false
+        );
+
+        assertTrue(engine.playCard(0));
+        assertEquals(1, firstBattle.getPlayer().getStrength());
+
+        BattleState secondBattle = engine.startBattle(
+                player,
+                passiveEnemy(30),
+                List.of(CardFactory.emberStrike()),
+                false
+        );
+        assertTrue(engine.playCard(0));
+
+        assertEquals(23, secondBattle.getEnemy().getHealth());
     }
 
     @Test
@@ -350,6 +543,27 @@ class GameEngineTest {
                 .mapToInt(EnemyIntent::getDamage)
                 .max()
                 .orElse(0);
+    }
+
+    private static final class FixedRandom extends Random {
+        private final int[] values;
+        private int index;
+
+        private FixedRandom(int... values) {
+            this.values = values;
+        }
+
+        @Override
+        public int nextInt(int bound) {
+            if (index >= values.length) {
+                return 0;
+            }
+            int value = values[index++];
+            if (value < 0 || value >= bound) {
+                throw new IllegalArgumentException("Fixed random value " + value + " outside bound " + bound);
+            }
+            return value;
+        }
     }
 
     private List<Card> starterLikeDeck() {

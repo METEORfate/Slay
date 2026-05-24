@@ -20,6 +20,8 @@ public class Combatant {
     private int health;
     private int block;
     private int energy;
+    private int temporaryStrength;
+    private int permanentStrength;
 
     public Combatant(String name, int maxHealth, List<Card> deck, int maxEnergy, int handSize) {
         if (maxHealth <= 0) {
@@ -57,6 +59,7 @@ public class Combatant {
         hand.clear();
         discardPile.clear();
         energy = 0;
+        temporaryStrength = 0;
     }
 
     public String getName() {
@@ -99,6 +102,10 @@ public class Combatant {
         return energy;
     }
 
+    public int getStrength() {
+        return temporaryStrength + permanentStrength;
+    }
+
     public void setEnergy(int energy) {
         if (energy < 0) {
             throw new IllegalArgumentException("energy must not be negative");
@@ -127,6 +134,20 @@ public class Combatant {
         block += amount;
     }
 
+    public void gainStrength(int amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException("amount must not be negative");
+        }
+        temporaryStrength += amount;
+    }
+
+    public void gainPermanentStrength(int amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException("amount must not be negative");
+        }
+        permanentStrength += amount;
+    }
+
     public int takeDamage(int amount) {
         if (amount < 0) {
             throw new IllegalArgumentException("amount must not be negative");
@@ -136,6 +157,15 @@ public class Combatant {
         int healthDamage = amount - blocked;
         health = Math.max(0, health - healthDamage);
         return healthDamage;
+    }
+
+    public int loseHealth(int amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException("amount must not be negative");
+        }
+        int before = health;
+        health = Math.max(0, health - amount);
+        return before - health;
     }
 
     public int heal(int amount) {

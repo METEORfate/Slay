@@ -21,12 +21,13 @@ public class CharacterPortrait extends Pane {
         setPrefSize(WIDTH, HEIGHT);
         setMinSize(WIDTH, HEIGHT);
         setMaxSize(WIDTH, HEIGHT);
+        setClip(new Rectangle(WIDTH, HEIGHT));
         getChildren().add(shadow());
     }
 
     public static CharacterPortrait player() {
         CharacterPortrait portrait = new CharacterPortrait();
-        if (!portrait.addImage("/assets/portraits/player.png", 306)) {
+        if (!portrait.addImage("/assets/portraits/player.png", 300)) {
             portrait.drawPlayer();
         }
         return portrait;
@@ -34,7 +35,7 @@ public class CharacterPortrait extends Pane {
 
     public static CharacterPortrait enemy() {
         CharacterPortrait portrait = new CharacterPortrait();
-        if (!portrait.addImage("/assets/portraits/minion.png", 306)) {
+        if (!portrait.addImage("/assets/portraits/minion.png", 300)) {
             portrait.drawEnemy();
         }
         return portrait;
@@ -42,7 +43,7 @@ public class CharacterPortrait extends Pane {
 
     public static CharacterPortrait boss() {
         CharacterPortrait portrait = new CharacterPortrait();
-        if (!portrait.addImage("/assets/portraits/boss.png", 314)) {
+        if (!portrait.addImage("/assets/portraits/boss.png", 304)) {
             portrait.drawEnemy();
         }
         return portrait;
@@ -59,11 +60,13 @@ public class CharacterPortrait extends Pane {
             imageView.setSmooth(true);
             imageView.setFitHeight(fitHeight);
             imageView.setFitWidth(WIDTH);
-            double renderedWidth = image.getWidth() > 0 && image.getHeight() > 0
-                    ? Math.min(WIDTH, image.getWidth() * fitHeight / image.getHeight())
-                    : WIDTH;
+            double scale = image.getWidth() > 0 && image.getHeight() > 0
+                    ? Math.min(WIDTH / image.getWidth(), fitHeight / image.getHeight())
+                    : 1;
+            double renderedWidth = image.getWidth() > 0 ? image.getWidth() * scale : WIDTH;
+            double renderedHeight = image.getHeight() > 0 ? image.getHeight() * scale : fitHeight;
             imageView.setLayoutX((WIDTH - renderedWidth) / 2);
-            imageView.setLayoutY(HEIGHT - fitHeight - 8);
+            imageView.setLayoutY(Math.max(2, HEIGHT - renderedHeight - 6));
             getChildren().add(imageView);
             return true;
         } catch (Exception ignored) {

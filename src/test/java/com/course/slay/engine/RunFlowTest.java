@@ -24,7 +24,7 @@ class RunFlowTest {
         GameEngine engine = new GameEngine(new Random(1));
         RunState run = engine.startNewRun();
 
-        assertEquals("守夜人", run.getPlayableCharacter().name());
+        assertEquals("狂战士", run.getPlayableCharacter().name());
         assertEquals(RunPhase.MAP, run.getPhase());
         assertEquals(12, run.getDeck().size());
         assertEquals(4, run.getMap().getNodesByFloor(1).stream().filter(MapNode::isAvailable).count());
@@ -96,15 +96,16 @@ class RunFlowTest {
         RunState run = engine.startNewRun();
 
         MapNode rest = advanceUntilAvailableType(engine, run, MapNodeType.REST);
-        run.getPlayer().takeDamage(20);
+        run.getPlayer().takeDamage(40);
         int before = run.getPlayer().getHealth();
 
         assertTrue(engine.selectMapNode(rest.getId()));
 
         assertEquals(RunPhase.REST_SITE, run.getPhase());
+        assertNull(engine.getState());
         assertTrue(engine.restAtCamp());
         assertEquals(RunPhase.MAP, run.getPhase());
-        assertTrue(run.getPlayer().getHealth() > before);
+        assertEquals(before + GameEngine.restHealAmount(run.getPlayer().getMaxHealth()), run.getPlayer().getHealth());
         assertTrue(rest.isCompleted());
     }
 
