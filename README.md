@@ -88,7 +88,7 @@ Slay
 │   │           └── portraits
 │   │               ├── boss.png
 │   │               ├── minion.png
-│   │               └── player.png
+│   │               └── 刺客立绘.png
 │   └── test
 │       └── java
 │           └── com/course/slay
@@ -118,7 +118,7 @@ Slay
 - `domain/card/CardRarity.java`：卡牌稀有度枚举，当前奖励抽取使用普通、罕见、稀有和传说，并保留特殊枚举以兼容已有卡牌模板。
 - `domain/card/DeckSummary.java`：牌组统计模型，用于计算总张数、攻击/技能/战术数量、平均费用和同名卡牌数量，供牌组菜单展示。
 - `domain/card/CardEffect.java`：卡牌效果策略接口，除了执行效果，也可声明该效果对应的视觉特效类型。
-- `domain/card/CardVisualEffect.java`：卡牌视觉特效类型枚举，当前包含攻击打击和护盾。
+- `domain/card/CardVisualEffect.java`：卡牌视觉特效类型枚举，当前包含攻击打击、护盾和增益。
 - `domain/card/EffectContext.java`：卡牌效果执行上下文，向效果对象暴露对手伤害、无视格挡伤害、易伤、自身格挡、抽牌、回能、下一张牌减费、治疗、失去生命、跳过敌方回合、保留格挡、弃牌回能、小刀生成、小刀伤害调整和日志能力，使玩家卡牌效果和战斗状态解耦。
 - `domain/card/effects/*`：攻击、防御、抽牌、回能、治疗、组合效果、按当前格挡造成伤害、按本场已出牌数加伤害、无视格挡伤害、易伤、下一次受伤变 1、下一张牌减费、保留格挡、格挡翻倍、失去生命、多段伤害、跳过敌方回合、小刀生成、小刀伤害提升、回合开始获得小刀等具体策略实现。
 - `domain/card/CardFactory.java`：集中创建卡牌，当前包含狂战士文档卡牌、刺客文档卡牌、衍生小刀牌、多种复合效果卡牌和所有显式升级版本，并提供 `canUpgrade`、`upgradeOf`、`copyOf` 统一处理升级和复制。
@@ -136,7 +136,264 @@ Slay
 - `domain/run/RouteMapFactory.java`：随机创建默认 14 层远征地图，包含多入口、多分岔、虚线连接、营地、事件、商店、精英和 Boss 节点。
 - `src/test/java/*`：核心领域逻辑单元测试，不依赖 JavaFX 渲染。
 
-## UML 类图
+## UML 设计图
+
+以下 UML 使用 Mermaid 编写，可直接在支持 Mermaid 的 Markdown 查看器中预览。README 内保留项目核心结构、流程和状态图；根目录的 `PROJECT_UML.md` 保留核心类图，便于课程提交时单独查看。
+
+### 用例图
+
+```mermaid
+flowchart LR
+    PlayerActor["玩家"]
+
+    subgraph Game["暗黑远征：卡牌试炼"]
+        StartRun["开始远征"]
+        SelectCharacter["选择角色"]
+        ExploreMap["选择路线节点"]
+        ViewDeck["查看牌组"]
+        Fight["进行战斗"]
+        PlayCard["打出卡牌"]
+        EndTurn["结束回合"]
+        ClaimReward["领取或跳过奖励"]
+        Rest["营地休息或升级"]
+        Shop["商店购牌或删牌"]
+        OpenSettings["打开设置菜单"]
+        FinishRun["通关或失败结算"]
+    end
+
+    PlayerActor --> StartRun
+    PlayerActor --> SelectCharacter
+    PlayerActor --> ExploreMap
+    PlayerActor --> ViewDeck
+    PlayerActor --> Fight
+    PlayerActor --> Rest
+    PlayerActor --> Shop
+    PlayerActor --> OpenSettings
+
+    StartRun --> SelectCharacter
+    SelectCharacter --> ExploreMap
+    ExploreMap --> Fight
+    Fight --> PlayCard
+    Fight --> EndTurn
+    Fight --> ClaimReward
+    ExploreMap --> Rest
+    ExploreMap --> Shop
+    ClaimReward --> ExploreMap
+    Rest --> ExploreMap
+    Shop --> ExploreMap
+    ExploreMap --> FinishRun
+    Fight --> FinishRun
+```
+
+### 分层架构图
+
+```mermaid
+flowchart TB
+    subgraph UI["ui 界面层"]
+        MainApp["MainApp"]
+        GameApplication["GameApplication"]
+        CharacterPortrait["CharacterPortrait"]
+    end
+
+    subgraph Engine["engine 流程层"]
+        GameEngine["GameEngine"]
+    end
+
+    subgraph Domain["domain 领域层"]
+        BattleState["BattleState"]
+        RunState["RunState"]
+        Combatant["Combatant"]
+        Player["Player"]
+        Enemy["Enemy"]
+        Card["Card"]
+        CardEffect["CardEffect"]
+        EffectContext["EffectContext"]
+        ExpeditionMap["ExpeditionMap"]
+        MapNode["MapNode"]
+        PlayableCharacter["PlayableCharacter"]
+    end
+
+    subgraph Factory["工厂与目录"]
+        CharacterCatalog["CharacterCatalog"]
+        StarterDeckFactory["StarterDeckFactory"]
+        CardFactory["CardFactory"]
+        EnemyFactory["EnemyFactory"]
+        RouteMapFactory["RouteMapFactory"]
+    end
+
+    subgraph Resource["resources 资源"]
+        Assets["assets 图片资源"]
+        BattleManifest["backgrounds/battle/manifest.txt"]
+    end
+
+    subgraph Test["test 测试"]
+        UnitTests["JUnit 5 领域逻辑测试"]
+    end
+
+    MainApp --> GameApplication
+    GameApplication --> GameEngine
+    GameApplication --> CharacterPortrait
+    GameApplication --> Assets
+    GameEngine --> BattleState
+    GameEngine --> RunState
+    GameEngine --> CharacterCatalog
+    GameEngine --> CardFactory
+    GameEngine --> EnemyFactory
+    GameEngine --> RouteMapFactory
+    BattleState --> Player
+    BattleState --> Enemy
+    RunState --> ExpeditionMap
+    RunState --> PlayableCharacter
+    Combatant --> Card
+    Card --> CardEffect
+    CardEffect --> EffectContext
+    ExpeditionMap --> MapNode
+    CharacterCatalog --> PlayableCharacter
+    StarterDeckFactory --> CardFactory
+    CardFactory --> Card
+    EnemyFactory --> Enemy
+    RouteMapFactory --> ExpeditionMap
+    BattleManifest --> Assets
+    UnitTests --> GameEngine
+    UnitTests --> BattleState
+    UnitTests --> Card
+    UnitTests --> RunState
+```
+
+### 远征主流程时序图
+
+```mermaid
+sequenceDiagram
+    actor Player as 玩家
+    participant UI as GameApplication
+    participant Engine as GameEngine
+    participant Catalog as CharacterCatalog
+    participant MapFactory as RouteMapFactory
+    participant Run as RunState
+    participant Map as ExpeditionMap
+
+    Player->>UI: 点击开始远征
+    UI->>Engine: getAvailableCharacters()
+    Engine->>Catalog: availableCharacters()
+    Catalog-->>Engine: 可选角色列表
+    Engine-->>UI: 可选角色列表
+    Player->>UI: 选择角色并点击出发
+    UI->>Engine: startNewRun(characterId)
+    Engine->>Catalog: findById(characterId)
+    Catalog-->>Engine: PlayableCharacter
+    Engine->>MapFactory: createRandomMap(random)
+    MapFactory-->>Engine: ExpeditionMap
+    Engine->>Run: new RunState(character, player, deck, map)
+    Engine-->>UI: RunState(phase=MAP)
+    UI-->>Player: 显示路线地图
+    Player->>UI: 选择可进入节点
+    UI->>Engine: selectMapNode(nodeId)
+    Engine->>Map: findNode(nodeId)
+    Map-->>Engine: MapNode
+    alt 战斗节点
+        Engine-->>UI: phase=BATTLE
+        UI-->>Player: 显示战斗界面
+    else 营地节点
+        Engine-->>UI: phase=REST_SITE
+        UI-->>Player: 显示营地界面
+    else 商店节点
+        Engine-->>UI: phase=SHOP
+        UI-->>Player: 显示商店界面
+    else 事件节点
+        Engine-->>UI: phase=REST_SITE 或 BATTLE 或 SHOP
+        UI-->>Player: 显示事件结果界面
+    end
+```
+
+### 战斗回合时序图
+
+```mermaid
+sequenceDiagram
+    actor PlayerActor as 玩家
+    participant UI as GameApplication
+    participant Engine as GameEngine
+    participant State as BattleState
+    participant Card as Card
+    participant Context as PlayerEffectContext
+    participant Enemy as Enemy
+    participant Action as EnemyAction
+
+    UI->>Engine: startBattle(player, enemy, deck)
+    Engine->>State: new BattleState(player, enemy)
+    Engine->>State: startPlayerTurn()
+    State-->>UI: 手牌、能量、敌人意图
+    PlayerActor->>UI: 点击手牌
+    UI->>Engine: playCard(handIndex)
+    Engine->>State: 检查能量并扣费
+    Engine->>Card: play(context)
+    Card->>Context: apply(context)
+    Context->>State: 修改生命、格挡、抽牌、能量或特殊标记
+    Engine->>State: recordPlayedCard(type)
+    alt 敌人生命为 0
+        Engine->>State: status=VICTORY
+        Engine-->>UI: 展示奖励或通关
+    else 战斗继续
+        PlayerActor->>UI: 点击结束回合
+        UI->>Engine: endTurn()
+        Engine->>State: 弃掉剩余手牌
+        Engine->>Enemy: takeNextAction()
+        Enemy-->>Engine: EnemyAction
+        Engine->>Action: execute(enemy, player, log)
+        Action->>State: 造成伤害、获得格挡或治疗
+        alt 玩家生命为 0
+            Engine->>State: status=DEFEAT
+            Engine-->>UI: 展示失败
+        else 玩家存活
+            Engine->>State: startPlayerTurn()
+            Engine-->>UI: 刷新新回合
+        end
+    end
+```
+
+### 远征状态图
+
+```mermaid
+stateDiagram-v2
+    [*] --> NOT_STARTED
+    NOT_STARTED --> MAP: startNewRun()
+    MAP --> BATTLE: 选择普通/精英/Boss/伏击节点
+    MAP --> REST_SITE: 选择营地或临时篝火
+    MAP --> SHOP: 选择商店或流动商人
+    BATTLE --> REWARD: 非 Boss 战斗胜利
+    BATTLE --> RUN_VICTORY: Boss 战斗胜利
+    BATTLE --> RUN_DEFEAT: 玩家生命归零
+    REWARD --> MAP: 领取奖励或跳过奖励
+    REST_SITE --> MAP: 休息或升级卡牌
+    SHOP --> MAP: 离开商店
+    RUN_VICTORY --> [*]
+    RUN_DEFEAT --> [*]
+```
+
+### 战斗活动图
+
+```mermaid
+flowchart TD
+    A["进入战斗"] --> B["准备玩家牌堆和敌人行动表"]
+    B --> C["玩家回合开始：清理或保留格挡，恢复能量，抽牌，预告敌人意图"]
+    C --> D{"玩家是否继续出牌"}
+    D -->|是| E{"手牌位置有效且能量足够"}
+    E -->|否| C
+    E -->|是| F["扣除能量并执行 CardEffect"]
+    F --> G{"敌人是否被击败"}
+    G -->|是| H{"当前节点是否 Boss"}
+    H -->|是| I["进入 RUN_VICTORY"]
+    H -->|否| J["生成奖励牌并进入 REWARD"]
+    G -->|否| D
+    D -->|否，结束回合| K["弃掉剩余手牌"]
+    K --> L{"是否跳过敌方回合"}
+    L -->|是| C
+    L -->|否| M["敌人执行预告行动"]
+    M --> N{"玩家是否被击败"}
+    N -->|是| O["进入 RUN_DEFEAT"]
+    N -->|否| C
+```
+
+### 核心类图
 
 ```mermaid
 classDiagram
@@ -289,6 +546,9 @@ classDiagram
         -int maxHealth
         -int health
         -int block
+        -int temporaryStrength
+        -int permanentStrength
+        -int vulnerable
         -List~Card~ deck
         -List~Card~ drawPile
         -List~Card~ hand
@@ -297,8 +557,13 @@ classDiagram
         -int handSize
         +prepareDeck(Random random, boolean shuffleDeck) void
         +takeDamage(int amount) int
+        +takeDamageIgnoringBlock(int amount) int
+        +loseHealth(int amount) int
         +heal(int amount) int
         +gainBlock(int amount) void
+        +gainStrength(int amount) void
+        +gainPermanentStrength(int amount) void
+        +addVulnerable(int stacks) void
     }
 
     class Player
@@ -384,6 +649,17 @@ classDiagram
         <<enumeration>>
         ATTACK
         SHIELD
+        BUFF
+    }
+
+    class CardType {
+        <<enumeration>>
+        ATTACK
+        SKILL
+        TACTIC
+        DEFENSE
+        BUFF
+        DEBUFF
     }
 
     class CardRarity {
@@ -398,8 +674,12 @@ classDiagram
     class EffectContext {
         <<interface>>
         +dealDamageToOpponent(int amount) void
+        +dealDamageToOpponentIgnoringBlock(int amount) void
+        +addVulnerableToOpponent(int stacks) void
         +gainBlock(int amount) void
         +currentBlock() int
+        +hasPlayedAttackThisTurn() boolean
+        +cardsPlayedThisBattle() int
         +addKnifeCardsToHand(int amount) void
         +knifeDamage(int baseDamage) int
         +addKnifeDamageBonus(int amount) void
@@ -407,10 +687,16 @@ classDiagram
         +addKnifeCardsAtTurnStart(int amount) void
         +drawCards(int amount) void
         +gainEnergy(int amount) void
+        +reduceNextCardCost(int amount) void
         +healSelf(int amount) void
+        +gainStrength(int amount) void
+        +gainPermanentStrength(int amount) void
         +loseHealth(int amount) void
         +skipNextEnemyTurn() void
+        +limitNextDamageTakenToOne() void
+        +retainBlockNextTurn() void
         +addEnergyPerDiscardThisTurn(int amount) void
+        +addOnDamageBuff(int strength, int block) void
     }
 
     class DamageEffect
@@ -466,6 +752,7 @@ classDiagram
     EnemyAction --> CardVisualEffect
     Combatant --> Card
     Card --> CardRarity
+    Card --> CardType
     Card --> CardEffect
     Card --> CardVisualEffect
     DeckSummary --> Card
@@ -498,7 +785,7 @@ classDiagram
     RouteMapFactory ..> ExpeditionMap
 ```
 
-主目录中的 `PROJECT_UML.md` 保存同一份当前项目 UML 图，便于课程提交时单独查看。
+主目录中的 `PROJECT_UML.md` 保存当前核心类图，便于课程提交时单独查看。
 
 ## 面向对象设计说明
 

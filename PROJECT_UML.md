@@ -151,6 +151,9 @@ classDiagram
         -int maxHealth
         -int health
         -int block
+        -int temporaryStrength
+        -int permanentStrength
+        -int vulnerable
         -List~Card~ deck
         -List~Card~ drawPile
         -List~Card~ hand
@@ -159,8 +162,13 @@ classDiagram
         -int handSize
         +prepareDeck(Random random, boolean shuffleDeck) void
         +takeDamage(int amount) int
+        +takeDamageIgnoringBlock(int amount) int
+        +loseHealth(int amount) int
         +heal(int amount) int
         +gainBlock(int amount) void
+        +gainStrength(int amount) void
+        +gainPermanentStrength(int amount) void
+        +addVulnerable(int stacks) void
     }
 
     class Player
@@ -246,6 +254,17 @@ classDiagram
         <<enumeration>>
         ATTACK
         SHIELD
+        BUFF
+    }
+
+    class CardType {
+        <<enumeration>>
+        ATTACK
+        SKILL
+        TACTIC
+        DEFENSE
+        BUFF
+        DEBUFF
     }
 
     class CardRarity {
@@ -260,8 +279,12 @@ classDiagram
     class EffectContext {
         <<interface>>
         +dealDamageToOpponent(int amount) void
+        +dealDamageToOpponentIgnoringBlock(int amount) void
+        +addVulnerableToOpponent(int stacks) void
         +gainBlock(int amount) void
         +currentBlock() int
+        +hasPlayedAttackThisTurn() boolean
+        +cardsPlayedThisBattle() int
         +addKnifeCardsToHand(int amount) void
         +knifeDamage(int baseDamage) int
         +addKnifeDamageBonus(int amount) void
@@ -269,10 +292,16 @@ classDiagram
         +addKnifeCardsAtTurnStart(int amount) void
         +drawCards(int amount) void
         +gainEnergy(int amount) void
+        +reduceNextCardCost(int amount) void
         +healSelf(int amount) void
+        +gainStrength(int amount) void
+        +gainPermanentStrength(int amount) void
         +loseHealth(int amount) void
         +skipNextEnemyTurn() void
+        +limitNextDamageTakenToOne() void
+        +retainBlockNextTurn() void
         +addEnergyPerDiscardThisTurn(int amount) void
+        +addOnDamageBuff(int strength, int block) void
     }
 
     class DamageEffect
@@ -328,6 +357,7 @@ classDiagram
     EnemyAction --> CardVisualEffect
     Combatant --> Card
     Card --> CardRarity
+    Card --> CardType
     Card --> CardEffect
     Card --> CardVisualEffect
     DeckSummary --> Card
