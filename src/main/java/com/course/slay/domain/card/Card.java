@@ -1,5 +1,6 @@
 package com.course.slay.domain.card;
 
+import java.util.EnumSet;
 import java.util.Objects;
 import java.util.Set;
 
@@ -85,6 +86,13 @@ public final class Card {
     }
 
     public Set<CardVisualEffect> getVisualEffects() {
-        return effect.visualEffects();
+        Set<CardVisualEffect> visualEffects = effect.visualEffects();
+        if (type != CardType.BUFF) {
+            return visualEffects;
+        }
+
+        EnumSet<CardVisualEffect> combined = EnumSet.of(CardVisualEffect.BUFF);
+        combined.addAll(visualEffects);
+        return Set.copyOf(combined);
     }
 }

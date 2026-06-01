@@ -35,6 +35,7 @@ import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tooltip;
+import javafx.scene.effect.BlendMode;
 import javafx.scene.effect.ColorAdjust;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -150,6 +151,8 @@ public class GameApplication extends Application {
     private static final String BATTLE_EMPTY_HEALTH_RESOURCE = BATTLE_UI_BASE + "空血血槽.png";
     private static final String BATTLE_FULL_HEALTH_RESOURCE = BATTLE_UI_BASE + "满血血槽.png";
     private static final String BATTLE_FULL_SHIELD_RESOURCE = BATTLE_UI_BASE + "满护盾槽.png";
+    private static final String BATTLE_SHIELD_EFFECT_RESOURCE = BATTLE_UI_BASE + "护盾特效.png";
+    private static final String BATTLE_BUFF_EFFECT_RESOURCE = BATTLE_UI_BASE + "增益特效.png";
     private static final String BATTLE_INFO_PANEL_RESOURCE = BATTLE_UI_BASE + "战斗信息组件.png";
     private static final String BATTLE_GOLD_RESOURCE = BATTLE_UI_BASE + "金币.png";
     private static final String BATTLE_DECK_BUTTON_RESOURCE = BATTLE_UI_BASE + "牌组按钮.png";
@@ -224,6 +227,8 @@ public class GameApplication extends Application {
     private BattleVitalsBar enemyVitalsBar;
     private Pane handPane;
     private Image attackEffectImage;
+    private Image shieldEffectImage;
+    private Image buffEffectImage;
     private Image selectedBattleBackgroundImage;
     private BattleState backgroundBattle;
     private String selectedBattleBackground;
@@ -907,7 +912,7 @@ public class GameApplication extends Application {
         scroll.setFitToHeight(false);
         scroll.setPannable(true);
         scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         scroll.setStyle(deckBrowserScrollStyle());
         VBox.setVgrow(scroll, Priority.ALWAYS);
 
@@ -3200,6 +3205,9 @@ public class GameApplication extends Application {
         if (visualEffects.contains(CardVisualEffect.SHIELD)) {
             playShieldEffect(shieldLayer);
         }
+        if (visualEffects.contains(CardVisualEffect.BUFF)) {
+            playBuffEffect(shieldLayer);
+        }
         if (visualEffects.contains(CardVisualEffect.ATTACK)) {
             playAttackEffect(attackLayer, attackTarget);
         }
@@ -3210,33 +3218,68 @@ public class GameApplication extends Application {
             return;
         }
 
-        Circle shield = new Circle(76);
-        shield.setFill(Color.web("#8bdcff", 0.14));
-        shield.setStroke(Color.web("#bdefff", 0.92));
-        shield.setStrokeWidth(5);
+        ImageView shield = new ImageView(shieldEffectImage());
+        shield.setPreserveRatio(true);
+        shield.setSmooth(true);
+        shield.setCache(true);
+        shield.setFitWidth(260);
         shield.setOpacity(0.0);
+        shield.setScaleX(0.62);
+        shield.setScaleY(0.62);
+        shield.setTranslateY(-10);
+        shield.setBlendMode(BlendMode.SCREEN);
+        shield.setMouseTransparent(true);
         StackPane.setAlignment(shield, Pos.CENTER);
 
-        Circle innerGlow = new Circle(50);
-        innerGlow.setFill(Color.TRANSPARENT);
-        innerGlow.setStroke(Color.web("#f4fbff", 0.75));
-        innerGlow.setStrokeWidth(2);
-        innerGlow.setOpacity(0.0);
-        StackPane.setAlignment(innerGlow, Pos.CENTER);
-
-        targetLayer.getChildren().addAll(shield, innerGlow);
+        targetLayer.getChildren().add(shield);
 
         ParallelTransition animation = new ParallelTransition(
-                fade(shield, 0.0, 0.82, 180),
-                scale(shield, 0.68, 1.08, 520),
-                fade(innerGlow, 0.0, 0.78, 140),
-                scale(innerGlow, 0.75, 1.35, 520)
+                fade(shield, 0.0, 0.92, 140),
+                scale(shield, 0.62, 1.0, 440),
+                translate(shield, 0, 6, 440)
         );
         animation.setOnFinished(event -> {
-            FadeTransition fadeOut = fade(shield, shield.getOpacity(), 0.0, 220);
-            FadeTransition innerFadeOut = fade(innerGlow, innerGlow.getOpacity(), 0.0, 220);
-            ParallelTransition exit = new ParallelTransition(fadeOut, innerFadeOut);
-            exit.setOnFinished(done -> targetLayer.getChildren().removeAll(shield, innerGlow));
+            ParallelTransition exit = new ParallelTransition(
+                    fade(shield, shield.getOpacity(), 0.0, 220),
+                    scale(shield, 1.0, 1.08, 220)
+            );
+            exit.setOnFinished(done -> targetLayer.getChildren().remove(shield));
+            exit.play();
+        });
+        animation.play();
+    }
+
+    private void playBuffEffect(StackPane targetLayer) {
+        if (targetLayer == null) {
+            return;
+        }
+
+        ImageView buff = new ImageView(buffEffectImage());
+        buff.setPreserveRatio(true);
+        buff.setSmooth(true);
+        buff.setCache(true);
+        buff.setFitWidth(270);
+        buff.setOpacity(0.0);
+        buff.setScaleX(0.5);
+        buff.setScaleY(0.5);
+        buff.setTranslateY(-16);
+        buff.setBlendMode(BlendMode.SCREEN);
+        buff.setMouseTransparent(true);
+        StackPane.setAlignment(buff, Pos.CENTER);
+
+        targetLayer.getChildren().add(buff);
+
+        ParallelTransition animation = new ParallelTransition(
+                fade(buff, 0.0, 0.94, 120),
+                scale(buff, 0.5, 1.02, 420),
+                translate(buff, 0, -28, 420)
+        );
+        animation.setOnFinished(event -> {
+            ParallelTransition exit = new ParallelTransition(
+                    fade(buff, buff.getOpacity(), 0.0, 240),
+                    scale(buff, 1.02, 1.12, 240)
+            );
+            exit.setOnFinished(done -> targetLayer.getChildren().remove(buff));
             exit.play();
         });
         animation.play();
@@ -3283,6 +3326,22 @@ public class GameApplication extends Application {
             attackEffectImage = new Image(resource);
         }
         return attackEffectImage;
+    }
+
+    private Image shieldEffectImage() {
+        if (shieldEffectImage == null) {
+            String resource = GameApplication.class.getResource(BATTLE_SHIELD_EFFECT_RESOURCE).toExternalForm();
+            shieldEffectImage = new Image(resource);
+        }
+        return shieldEffectImage;
+    }
+
+    private Image buffEffectImage() {
+        if (buffEffectImage == null) {
+            String resource = GameApplication.class.getResource(BATTLE_BUFF_EFFECT_RESOURCE).toExternalForm();
+            buffEffectImage = new Image(resource);
+        }
+        return buffEffectImage;
     }
 
     private void shakeTarget(StackPane target) {

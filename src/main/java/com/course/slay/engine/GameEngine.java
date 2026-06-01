@@ -126,10 +126,6 @@ public class GameEngine {
         if (node.getType() == MapNodeType.EVENT) {
             state = null;
             resolveEventNode();
-            if (runState.getPhase() == RunPhase.RUN_DEFEAT) {
-                return true;
-            }
-            completeRunNode();
             return true;
         }
         if (node.getType() == MapNodeType.SHOP) {
@@ -533,25 +529,22 @@ public class GameEngine {
     private void resolveEventNode() {
         int roll = random.nextInt(3);
         if (roll == 0) {
-            int healed = runState.getPlayer().heal(10);
-            runState.addLog("特殊事件：发现安全藏身处，恢复 " + healed + " 点生命。");
+            runState.setPhase(RunPhase.REST_SITE);
+            runState.addLog("特殊事件：发现临时篝火，可以休息恢复最大生命的 "
+                    + REST_HEAL_PERCENT + "%，或升级一张牌。");
             return;
         }
         if (roll == 1) {
-            int before = runState.getPlayer().getHealth();
-            runState.getPlayer().takeDamage(6);
-            int damage = Math.max(0, before - runState.getPlayer().getHealth());
-            runState.addLog("特殊事件：穿过塌陷街区，失去 " + damage + " 点生命。");
-            if (!runState.getPlayer().isAlive()) {
-                runState.setPhase(RunPhase.RUN_DEFEAT);
-                runState.addLog("远征失败：事件伤害耗尽了生命。");
-            }
+            Enemy enemy = EnemyFactory.createEnemyFor(MapNodeType.NORMAL, random);
+            startBattle(runState.getPlayer(), enemy, runState.getDeck(), true);
+            state.addLog("特殊事件：遭遇伏击。");
+            runState.setPhase(RunPhase.BATTLE);
             return;
         }
 
-        Card found = CardFactory.copyOf(randomRewardCard());
-        runState.getDeck().add(found);
-        runState.addLog("特殊事件：找到遗落战术牌【" + found.getName() + "】。");
+        runState.setShopCards(createRewardChoices(3));
+        runState.setPhase(RunPhase.SHOP);
+        runState.addLog("特殊事件：遇到流动商人，可以购买卡牌、删牌或直接离开。");
     }
 
     private List<Card> createRewardChoices(int count) {

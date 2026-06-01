@@ -17,6 +17,16 @@ class CardVisualEffectTest {
         assertEquals(2, visualEffects.size());
     }
 
+    @Test
+    void buffCardsExposeBuffVisualEffect() {
+        assertEquals(SetOf.buff(), CardFactory.assassinAdvance().getVisualEffects());
+
+        var visualEffects = CardFactory.berserkerTranquility().getVisualEffects();
+        assertTrue(visualEffects.contains(CardVisualEffect.BUFF));
+        assertTrue(visualEffects.contains(CardVisualEffect.SHIELD));
+        assertEquals(2, visualEffects.size());
+    }
+
     private static final class SetOf {
         private SetOf() {
         }
@@ -27,6 +37,10 @@ class CardVisualEffectTest {
 
         private static java.util.Set<CardVisualEffect> shield() {
             return java.util.Set.of(CardVisualEffect.SHIELD);
+        }
+
+        private static java.util.Set<CardVisualEffect> buff() {
+            return java.util.Set.of(CardVisualEffect.BUFF);
         }
     }
 }

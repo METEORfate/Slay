@@ -110,6 +110,63 @@ class RunFlowTest {
     }
 
     @Test
+    void eventCanOpenCampAndCompletesAfterCampAction() {
+        EventRollRandom random = new EventRollRandom(1);
+        GameEngine engine = new GameEngine(random);
+        RunState run = engine.startNewRun();
+
+        MapNode event = advanceUntilAvailableType(engine, run, MapNodeType.EVENT);
+        random.forceEventRoll(0);
+        assertTrue(engine.selectMapNode(event.getId()));
+
+        assertEquals(RunPhase.REST_SITE, run.getPhase());
+        assertNull(engine.getState());
+        assertTrue(engine.restAtCamp());
+        assertEquals(RunPhase.MAP, run.getPhase());
+        assertTrue(event.isCompleted());
+    }
+
+    @Test
+    void eventCanOpenBattleAndCompletesAfterReward() {
+        EventRollRandom random = new EventRollRandom(1);
+        GameEngine engine = new GameEngine(random);
+        RunState run = engine.startNewRun();
+
+        MapNode event = advanceUntilAvailableType(engine, run, MapNodeType.EVENT);
+        int beforeGold = run.getGold();
+        random.forceEventRoll(1);
+        assertTrue(engine.selectMapNode(event.getId()));
+
+        assertEquals(RunPhase.BATTLE, run.getPhase());
+        assertTrue(engine.getState() != null);
+        defeatCurrentEnemy(engine);
+        assertEquals(RunPhase.REWARD, run.getPhase());
+        assertEquals(beforeGold, run.getGold());
+
+        assertTrue(engine.skipReward());
+        assertEquals(RunPhase.MAP, run.getPhase());
+        assertTrue(event.isCompleted());
+    }
+
+    @Test
+    void eventCanOpenShopAndCompletesAfterLeaving() {
+        EventRollRandom random = new EventRollRandom(1);
+        GameEngine engine = new GameEngine(random);
+        RunState run = engine.startNewRun();
+
+        MapNode event = advanceUntilAvailableType(engine, run, MapNodeType.EVENT);
+        random.forceEventRoll(2);
+        assertTrue(engine.selectMapNode(event.getId()));
+
+        assertEquals(RunPhase.SHOP, run.getPhase());
+        assertEquals(3, run.getShopCards().size());
+        assertTrue(engine.leaveShop());
+        assertEquals(RunPhase.MAP, run.getPhase());
+        assertTrue(run.getShopCards().isEmpty());
+        assertTrue(event.isCompleted());
+    }
+
+    @Test
     void skipRewardLeavesDeckUnchangedAndGrantsGold() {
         GameEngine engine = new GameEngine(new Random(1));
         RunState run = engine.startNewRun();
@@ -303,6 +360,28 @@ class RunFlowTest {
         state.setEnergy(99);
         while (state.getStatus() == GameStatus.IN_PROGRESS) {
             engine.playCard(0);
+        }
+    }
+
+    private static final class EventRollRandom extends Random {
+        private Integer forcedEventRoll;
+
+        EventRollRandom(long seed) {
+            super(seed);
+        }
+
+        void forceEventRoll(int eventRoll) {
+            forcedEventRoll = eventRoll;
+        }
+
+        @Override
+        public int nextInt(int bound) {
+            if (forcedEventRoll != null && bound == 3) {
+                int eventRoll = forcedEventRoll;
+                forcedEventRoll = null;
+                return eventRoll;
+            }
+            return super.nextInt(bound);
         }
     }
 }
