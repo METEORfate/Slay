@@ -14,6 +14,11 @@ import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
 
 public class CharacterPortrait extends Pane {
+    public static final String BERSERKER_CHARACTER_ID = "night_watch";
+    public static final String BERSERKER_PORTRAIT_RESOURCE = "/assets/ui/狂战士立绘.png";
+    public static final String ASSASSIN_CHARACTER_ID = "cinder_seeker";
+    public static final String ASSASSIN_PORTRAIT_RESOURCE = "/assets/ui/刺客立绘.png";
+
     private static final double WIDTH = 260;
     private static final double HEIGHT = 310;
 
@@ -26,8 +31,18 @@ public class CharacterPortrait extends Pane {
     }
 
     public static CharacterPortrait player() {
+        return player(BERSERKER_CHARACTER_ID);
+    }
+
+    public static CharacterPortrait player(String characterId) {
         CharacterPortrait portrait = new CharacterPortrait();
-        if (!portrait.addImage("/assets/portraits/player.png", 300)) {
+        String portraitResource = switch (characterId) {
+            case BERSERKER_CHARACTER_ID -> BERSERKER_PORTRAIT_RESOURCE;
+            case ASSASSIN_CHARACTER_ID -> ASSASSIN_PORTRAIT_RESOURCE;
+            default -> null;
+        };
+        boolean imageLoaded = portraitResource != null && portrait.addImage(portraitResource, 312);
+        if (!imageLoaded) {
             portrait.drawPlayer();
         }
         return portrait;
@@ -35,7 +50,7 @@ public class CharacterPortrait extends Pane {
 
     public static CharacterPortrait enemy() {
         CharacterPortrait portrait = new CharacterPortrait();
-        if (!portrait.addImage("/assets/portraits/minion.png", 300)) {
+        if (!portrait.addImage("/assets/portraits/minion.png", 312)) {
             portrait.drawEnemy();
         }
         return portrait;
@@ -43,7 +58,7 @@ public class CharacterPortrait extends Pane {
 
     public static CharacterPortrait boss() {
         CharacterPortrait portrait = new CharacterPortrait();
-        if (!portrait.addImage("/assets/portraits/boss.png", 304)) {
+        if (!portrait.addImage("/assets/portraits/boss.png", 316)) {
             portrait.drawEnemy();
         }
         return portrait;

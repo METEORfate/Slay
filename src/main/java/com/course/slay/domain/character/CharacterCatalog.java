@@ -16,19 +16,19 @@ public final class CharacterCatalog {
                     72,
                     3,
                     5,
-                    StarterDeckFactory::createNightWatchStarterDeck,
-                    CardFactory::rewardPool
+                    StarterDeckFactory::createBerserkerStarterDeck,
+                    CardFactory::berserkerRewardPool
             ),
             new PlayableCharacter(
                     "cinder_seeker",
-                    "烬痕旅人",
+                    "刺客",
                     "机动作战",
-                    "当前与狂战士复用同一套牌，后续可替换为更偏机动的初始牌和奖励池。",
+                    "围绕小刀、连击、易伤和短期爆发展开，依靠精准时机压低敌人生命。",
                     72,
                     3,
                     5,
-                    StarterDeckFactory::createCinderSeekerStarterDeck,
-                    CardFactory::rewardPool
+                    StarterDeckFactory::createAssassinStarterDeck,
+                    CardFactory::assassinRewardPool
             )
     );
 

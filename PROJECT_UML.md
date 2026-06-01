@@ -64,6 +64,14 @@ classDiagram
         -List~String~ battleLog
         -int turnNumber
         -GameStatus status
+        -int knifeDamageBonus
+        -int knifeDamageThisTurn
+        -int knifeCardsAtTurnStart
+        +knifeDamage(int baseDamage) int
+        +addKnifeDamageBonus(int amount) void
+        +setKnifeDamageThisTurn(int amount) void
+        +addKnifeCardsAtTurnStart(int amount) void
+        +getKnifeCardsAtTurnStart() int
     }
 
     class RunState {
@@ -200,6 +208,8 @@ classDiagram
 
     class CardFactory {
         +rewardPool() List~Card~
+        +berserkerRewardPool() List~Card~
+        +assassinRewardPool() List~Card~
         +canUpgrade(Card card) boolean
         +upgradeOf(Card card) Card
         +copyOf(Card card) Card
@@ -252,6 +262,11 @@ classDiagram
         +dealDamageToOpponent(int amount) void
         +gainBlock(int amount) void
         +currentBlock() int
+        +addKnifeCardsToHand(int amount) void
+        +knifeDamage(int baseDamage) int
+        +addKnifeDamageBonus(int amount) void
+        +setKnifeDamageThisTurn(int amount) void
+        +addKnifeCardsAtTurnStart(int amount) void
         +drawCards(int amount) void
         +gainEnergy(int amount) void
         +healSelf(int amount) void
@@ -272,6 +287,11 @@ classDiagram
     class RepeatedDamageEffect
     class ScaleCurrentBlockEffect
     class SkipEnemyTurnEffect
+    class AddKnifeCardsEffect
+    class KnifeDamageEffect
+    class KnifeDamageBonusEffect
+    class KnifeDamageThisTurnEffect
+    class KnifeAtTurnStartEffect
     class StarterDeckFactory
     class EnemyFactory
     class RouteMapFactory {
@@ -329,6 +349,11 @@ classDiagram
     RepeatedDamageEffect ..|> CardEffect
     ScaleCurrentBlockEffect ..|> CardEffect
     SkipEnemyTurnEffect ..|> CardEffect
+    AddKnifeCardsEffect ..|> CardEffect
+    KnifeDamageEffect ..|> CardEffect
+    KnifeDamageBonusEffect ..|> CardEffect
+    KnifeDamageThisTurnEffect ..|> CardEffect
+    KnifeAtTurnStartEffect ..|> CardEffect
     CardFactory ..> Card
     StarterDeckFactory ..> CardFactory
     EnemyFactory ..> Enemy

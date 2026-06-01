@@ -26,7 +26,7 @@ class RunFlowTest {
 
         assertEquals("狂战士", run.getPlayableCharacter().name());
         assertEquals(RunPhase.MAP, run.getPhase());
-        assertEquals(12, run.getDeck().size());
+        assertEquals(8, run.getDeck().size());
         assertEquals(4, run.getMap().getNodesByFloor(1).stream().filter(MapNode::isAvailable).count());
         assertEquals(14, run.getMap().getFloors().size());
         assertTrue(run.getMap().getNodes().stream().anyMatch(node -> node.getType() == MapNodeType.EVENT));
@@ -87,7 +87,7 @@ class RunFlowTest {
         for (String nextId : selected.getNextNodeIds()) {
             assertTrue(run.getMap().findNode(nextId).orElseThrow().isAvailable());
         }
-        assertEquals(13, run.getDeck().size());
+        assertEquals(9, run.getDeck().size());
     }
 
     @Test

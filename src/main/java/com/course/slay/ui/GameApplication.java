@@ -5,6 +5,7 @@ import com.course.slay.domain.GameStatus;
 import com.course.slay.domain.card.Card;
 import com.course.slay.domain.card.CardFactory;
 import com.course.slay.domain.card.CardRarity;
+import com.course.slay.domain.card.CardType;
 import com.course.slay.domain.card.CardVisualEffect;
 import com.course.slay.domain.card.DeckSummary;
 import com.course.slay.domain.character.PlayableCharacter;
@@ -22,6 +23,7 @@ import javafx.animation.SequentialTransition;
 import javafx.animation.TranslateTransition;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
@@ -31,13 +33,14 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
-import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tooltip;
+import javafx.scene.effect.ColorAdjust;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
@@ -64,6 +67,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
@@ -78,21 +82,30 @@ public class GameApplication extends Application {
     private static final double MAP_ROUTE_RIGHT_RATIO = 0.76;
     private static final double MAP_ROUTE_TOP_RATIO = 0.18;
     private static final double MAP_ROUTE_BOTTOM_RATIO = 0.73;
-    private static final double HAND_CARD_WIDTH = 168;
-    private static final double HAND_CARD_HEIGHT = 252;
-    private static final double HAND_CARD_SLOT_HEIGHT = 318;
-    private static final double HAND_CARD_SPACING = 4;
+    private static final double HAND_CARD_WIDTH = 186;
+    private static final double HAND_CARD_HEIGHT = 279;
+    private static final double HAND_CARD_ART_WIDTH = 142;
+    private static final double HAND_CARD_ART_HEIGHT = 112;
+    private static final double HAND_CARD_ART_TOP_MARGIN = 55;
+    private static final double HAND_CARD_ART_CLIP_ARC = 8;
+    private static final double COMMON_CARD_TYPE_BOTTOM_MARGIN = 22;
+    private static final double DECORATED_CARD_TYPE_BOTTOM_MARGIN = 10;
+    private static final double HAND_CARD_SLOT_HEIGHT = 342;
+    private static final double HAND_CARD_SIDE_PADDING = 18;
+    private static final double HAND_CARD_PREFERRED_STEP = 132;
     private static final double HAND_CARD_HOVER_SCALE = 1.04;
     private static final double HAND_CARD_HOVER_PULL = 30;
     private static final double HAND_CARD_FAN_STEP_DEGREES = 5.5;
     private static final double HAND_CARD_MAX_ROTATION_DEGREES = 13.5;
     private static final double HAND_CARD_ARC_STEP = 10;
     private static final double HAND_CARD_MAX_ARC_Y = 24;
+    private static final double BATTLE_BOTTOM_UI_OFFSET_Y = 32;
     private static final double RESOURCE_ICON_SLOT = 32;
     private static final double RESOURCE_ICON_SIZE = 27;
-    private static final double BATTLE_ACTION_BUTTON_SIZE = 54;
-    private static final double BATTLE_ACTION_ICON_SIZE = 40;
+    private static final double BATTLE_ACTION_BUTTON_SIZE = 64;
+    private static final double BATTLE_ACTION_ICON_SIZE = 52;
     private static final double BATTLE_ACTION_BUTTON_GAP = 12;
+    private static final double BATTLE_INFO_PANEL_ASPECT = 1403.0 / 569.0;
     private static final double PILE_ICON_SLOT_WIDTH = 124;
     private static final double PILE_ICON_SLOT_HEIGHT = 92;
     private static final double PILE_ICON_WIDTH = 112;
@@ -100,21 +113,94 @@ public class GameApplication extends Application {
     private static final String MAP_BACKGROUND_RESOURCE = "/assets/backgrounds/map/mapBackground.png";
     private static final String MAP_LEGEND_RESOURCE = "/assets/backgrounds/map/tuli.png";
     private static final String BATTLE_UI_BASE = "/assets/ui/";
+    private static final String MAIN_MENU_BACKGROUND_RESOURCE = BATTLE_UI_BASE + "开始界面.png";
+    private static final String CHARACTER_SELECT_BACKGROUND_RESOURCE = BATTLE_UI_BASE + "选角界面背景.png";
+    private static final String CHARACTER_SELECT_DEPART_BUTTON_RESOURCE = BATTLE_UI_BASE + "“出发”按钮.png";
+    private static final String CHARACTER_SELECT_BACK_BUTTON_RESOURCE = BATTLE_UI_BASE + "“返回菜单”按钮.png";
+    private static final String MAIN_MENU_START_BUTTON_RESOURCE = BATTLE_UI_BASE + "开始游戏按钮.png";
+    private static final String MAIN_MENU_EXIT_BUTTON_RESOURCE = BATTLE_UI_BASE + "退出游戏按钮.png";
+    private static final String ASSASSIN_CHARACTER_ID = "cinder_seeker";
+    private static final double MAIN_MENU_START_BUTTON_X = 603;
+    private static final double MAIN_MENU_START_BUTTON_Y = 555;
+    private static final double MAIN_MENU_START_BUTTON_WIDTH = 380;
+    private static final double MAIN_MENU_BUTTON_GAP = 18;
+    private static final double MAIN_MENU_START_BUTTON_FALLBACK_ASPECT = 1536.0 / 440.0;
+    private static final double CHARACTER_SELECT_HEADER_SPACE = 32;
+    private static final double CHARACTER_SELECT_CHOICE_GAP = 54;
+    private static final double CHARACTER_SELECT_CHOICE_AREA_OFFSET_Y = 28;
+    private static final double CHARACTER_CHOICE_WIDTH = 292;
+    private static final double CHARACTER_CHOICE_HEIGHT = 370;
+    private static final double CHARACTER_CHOICE_PORTRAIT_AREA_WIDTH = 280;
+    private static final double CHARACTER_CHOICE_PORTRAIT_AREA_HEIGHT = 318;
+    private static final double CHARACTER_CHOICE_GLOW_WIDTH = 236;
+    private static final double CHARACTER_CHOICE_GLOW_HEIGHT = 280;
+    private static final double CHARACTER_SELECT_BUTTON_WIDTH = 305;
+    private static final double CHARACTER_SELECT_BUTTON_GAP = 10;
+    private static final double CHARACTER_SELECT_BUTTON_BOTTOM_MARGIN = 2;
     private static final String BATTLE_SCENE_BACKGROUND_RESOURCE = BATTLE_UI_BASE + "战斗背景.png";
     private static final String BATTLE_ENERGY_ORB_RESOURCE = BATTLE_UI_BASE + "能量球.png";
     private static final String BATTLE_END_TURN_RESOURCE = BATTLE_UI_BASE + "结束回合按钮.png";
     private static final String BATTLE_DRAW_PILE_RESOURCE = BATTLE_UI_BASE + "抽牌堆.png";
     private static final String BATTLE_DISCARD_PILE_RESOURCE = BATTLE_UI_BASE + "弃牌堆.png";
-    private static final String BATTLE_PLAYER_FRAME_RESOURCE = BATTLE_UI_BASE + "狂战士头像.png";
+    private static final String BATTLE_BERSERKER_HEADER_HEALTH_FULL_RESOURCE = BATTLE_UI_BASE + "狂战士头像血槽满.png";
+    private static final String BATTLE_BERSERKER_HEADER_HEALTH_EMPTY_RESOURCE = BATTLE_UI_BASE + "狂战士头像血条空.png";
+    private static final String BATTLE_ASSASSIN_HEADER_HEALTH_FULL_RESOURCE = BATTLE_UI_BASE + "刺客头像血条满.png";
+    private static final String BATTLE_ASSASSIN_HEADER_HEALTH_EMPTY_RESOURCE = BATTLE_UI_BASE + "刺客头像血条空.png";
+    private static final String BATTLE_BERSERKER_AVATAR_RESOURCE = BATTLE_UI_BASE + "狂战士头像.png";
+    private static final String BATTLE_EMPTY_HEALTH_RESOURCE = BATTLE_UI_BASE + "空血血槽.png";
+    private static final String BATTLE_FULL_HEALTH_RESOURCE = BATTLE_UI_BASE + "满血血槽.png";
+    private static final String BATTLE_FULL_SHIELD_RESOURCE = BATTLE_UI_BASE + "满护盾槽.png";
+    private static final String BATTLE_INFO_PANEL_RESOURCE = BATTLE_UI_BASE + "战斗信息组件.png";
     private static final String BATTLE_GOLD_RESOURCE = BATTLE_UI_BASE + "金币.png";
     private static final String BATTLE_DECK_BUTTON_RESOURCE = BATTLE_UI_BASE + "牌组按钮.png";
     private static final String BATTLE_SETTINGS_RESOURCE = BATTLE_UI_BASE + "设置按钮.png";
+    private static final String SETTINGS_BACKGROUND_RESOURCE = BATTLE_UI_BASE + "设置界面背景图.png";
+    private static final String SETTINGS_BACK_BUTTON_RESOURCE = BATTLE_UI_BASE + "返回按钮.png";
+    private static final String SETTINGS_SAVE_EXIT_BUTTON_RESOURCE = BATTLE_UI_BASE + "保存并退出按钮.png";
+    private static final double SETTINGS_PANEL_SCALE = 1.12;
+    private static final double SETTINGS_PANEL_BASE_WIDTH = 760;
+    private static final double SETTINGS_PANEL_BASE_HEIGHT = 560;
+    private static final double SETTINGS_PANEL_VIEW_MARGIN = 24;
+    private static final double SETTINGS_ACTION_GAP = 1;
+    private static final double SETTINGS_ACTION_RIGHT_MARGIN = 5;
+    private static final double SETTINGS_ACTION_BOTTOM_MARGIN = 5;
+    private static final double SETTINGS_ACTION_BUTTON_WIDTH = 148;
+    private static final int DECK_BROWSER_COLUMNS = 5;
+    private static final double DECK_BROWSER_TOP_INSET = 18;
+    private static final double DECK_BROWSER_SIDE_INSET = 34;
+    private static final double DECK_BROWSER_BOTTOM_INSET = 68;
+    private static final double DECK_BROWSER_SORT_BAR_HEIGHT = 48;
+    private static final double DECK_BROWSER_SORT_BAR_WIDTH_RATIO = 0.94;
+    private static final double DECK_BROWSER_CARD_HGAP = 24;
+    private static final double DECK_BROWSER_CARD_VGAP = 30;
+    private static final double DECK_BROWSER_SIDEBAR_WIDTH = 178;
+    private static final double DECK_BROWSER_BODY_GAP = 24;
     private static final String BATTLE_BACKGROUND_BASE = "/assets/backgrounds/battle/";
     private static final String BATTLE_BACKGROUND_MANIFEST = BATTLE_BACKGROUND_BASE + "manifest.txt";
     private static final String COMMON_CARD_TEMPLATE_RESOURCE = BATTLE_UI_BASE + "普通卡.png";
     private static final String RARE_CARD_TEMPLATE_RESOURCE = BATTLE_UI_BASE + "稀有卡.png";
     private static final String LEGENDARY_CARD_TEMPLATE_RESOURCE = BATTLE_UI_BASE + "传说卡.png";
     private static final String SPECIAL_CARD_TEMPLATE_RESOURCE = BATTLE_UI_BASE + "特殊卡.png";
+    private static final String ATTACK_CARD_ART_RESOURCE = BATTLE_UI_BASE + "攻击牌默认图像.png";
+    private static final String DEFENSE_CARD_ART_RESOURCE = BATTLE_UI_BASE + "防御牌基本图像.png";
+    private static final String BUFF_CARD_ART_RESOURCE = BATTLE_UI_BASE + "增益牌默认图像.png";
+    private static final double COMBATANT_UNIT_WIDTH = 320;
+    private static final double COMBATANT_UNIT_HEIGHT = 370;
+    private static final double COMBATANT_UNIT_BASELINE_OFFSET_Y = 112;
+    private static final double COMBATANT_VITALS_WIDTH = 250;
+    private static final double COMBATANT_VITALS_HEIGHT = 62;
+    private static final double COMBATANT_VITALS_TOP = 260;
+    private static final double COMBATANT_CAPTION_TOP = 312;
+    private static final double COMBATANT_SHIELD_VALUE_LEFT = 3;
+    private static final double COMBATANT_SHIELD_VALUE_TOP = 11;
+    private static final double COMBATANT_SHIELD_VALUE_WIDTH = 54;
+    private static final double COMBATANT_SHIELD_VALUE_HEIGHT = 36;
+    private static final double PLAYER_HEADER_WIDTH = 276;
+    private static final double PLAYER_HEADER_HEIGHT = 92;
+    private static final double PLAYER_HEADER_HEALTH_BAR_LEFT = 80;
+    private static final double PLAYER_HEADER_HEALTH_BAR_TOP = 52;
+    private static final double PLAYER_HEADER_HEALTH_BAR_WIDTH = 158;
+    private static final double PLAYER_HEADER_HEALTH_BAR_HEIGHT = 18;
 
     private final GameEngine engine = new GameEngine();
     private final Random uiRandom = new Random();
@@ -133,11 +219,10 @@ public class GameApplication extends Application {
     private Label statusLabel;
     private Label playerHeaderNameLabel;
     private Label playerHeaderHealthLabel;
-    private Label playerBlockLabel;
-    private Label enemyBlockLabel;
-    private ProgressBar playerHealthBar;
-    private ProgressBar enemyHealthBar;
-    private HBox handBox;
+    private Rectangle playerHeaderHealthClip;
+    private BattleVitalsBar playerVitalsBar;
+    private BattleVitalsBar enemyVitalsBar;
+    private Pane handPane;
     private Image attackEffectImage;
     private Image selectedBattleBackgroundImage;
     private BattleState backgroundBattle;
@@ -168,30 +253,132 @@ public class GameApplication extends Application {
         stage.getScene().setRoot(root);
     }
 
-    private BorderPane createMainMenu() {
-        Label title = new Label("暗黑远征：卡牌试炼");
-        title.setStyle("-fx-text-fill: #f6dfad; -fx-font-size: 42px; -fx-font-weight: bold;");
+    private StackPane createMainMenu() {
+        StackPane root = new StackPane();
+        root.setStyle("-fx-background-color: #020203;");
+        clipToBounds(root);
 
-        Label subtitle = new Label("选择路线，构筑牌组，击败尽头首领");
-        subtitle.setStyle("-fx-text-fill: #d6c8ab; -fx-font-size: 18px;");
+        ImageView background = null;
+        var backgroundResource = GameApplication.class.getResource(MAIN_MENU_BACKGROUND_RESOURCE);
+        if (backgroundResource != null) {
+            background = new ImageView(new Image(backgroundResource.toExternalForm()));
+            background.setManaged(false);
+            background.setPreserveRatio(true);
+            background.setSmooth(true);
+            background.setCache(true);
+            root.getChildren().add(background);
+        }
 
-        Button startButton = new Button("开始远征");
-        startButton.setStyle(primaryButtonStyle() + "-fx-font-size: 18px; -fx-padding: 12 34 12 34;");
-        startButton.setOnAction(event -> setRoot(createCharacterSelectView()));
+        StackPane startButton = createMainMenuStartButton();
+        StackPane exitButton = createMainMenuExitButton();
+        root.getChildren().addAll(startButton, exitButton);
 
-        Button exitButton = new Button("退出");
-        exitButton.setStyle(secondaryButtonStyle() + "-fx-font-size: 14px;");
-        exitButton.setOnAction(event -> stage.close());
-
-        VBox menu = new VBox(18, title, subtitle, startButton, exitButton);
-        menu.setAlignment(Pos.CENTER);
-
-        BorderPane root = baseRoot();
-        root.setCenter(menu);
+        ImageView menuBackground = background;
+        if (menuBackground != null) {
+            root.widthProperty().addListener((observable, oldValue, newValue) ->
+                    layoutMainMenuBackground(menuBackground, startButton, exitButton, root));
+            root.heightProperty().addListener((observable, oldValue, newValue) ->
+                    layoutMainMenuBackground(menuBackground, startButton, exitButton, root));
+            Platform.runLater(() -> layoutMainMenuBackground(menuBackground, startButton, exitButton, root));
+        }
         return root;
     }
 
-    private BorderPane createCharacterSelectView() {
+    private StackPane createMainMenuStartButton() {
+        return createMainMenuImageButton(MAIN_MENU_START_BUTTON_RESOURCE, () -> setRoot(createCharacterSelectView()));
+    }
+
+    private StackPane createMainMenuExitButton() {
+        return createMainMenuImageButton(MAIN_MENU_EXIT_BUTTON_RESOURCE, () -> stage.close());
+    }
+
+    private StackPane createMainMenuImageButton(String resourcePath, Runnable action) {
+        ImageView image = createMainMenuButtonImage(resourcePath);
+        ColorAdjust colorAdjust = new ColorAdjust();
+        image.setEffect(colorAdjust);
+
+        StackPane button = new StackPane(image);
+        button.setManaged(false);
+        button.setAlignment(Pos.CENTER);
+        button.setPickOnBounds(true);
+        button.setStyle("-fx-background-color: transparent; -fx-border-color: transparent; -fx-padding: 0; -fx-cursor: hand;");
+        button.setOnMouseEntered(event -> {
+            button.setScaleX(1.025);
+            button.setScaleY(1.025);
+            colorAdjust.setBrightness(0.07);
+        });
+        button.setOnMouseExited(event -> {
+            button.setScaleX(1.0);
+            button.setScaleY(1.0);
+            colorAdjust.setBrightness(0.0);
+        });
+        button.setOnMousePressed(event -> {
+            button.setScaleX(0.985);
+            button.setScaleY(0.985);
+            colorAdjust.setBrightness(0.03);
+        });
+        button.setOnMouseReleased(event -> {
+            boolean hover = button.isHover();
+            button.setScaleX(hover ? 1.025 : 1.0);
+            button.setScaleY(hover ? 1.025 : 1.0);
+            colorAdjust.setBrightness(hover ? 0.07 : 0.0);
+        });
+        button.setOnMouseClicked(event -> {
+            action.run();
+            event.consume();
+        });
+        return button;
+    }
+
+    private ImageView createMainMenuButtonImage(String resourcePath) {
+        ImageView image = createUiImageView(resourcePath, MAIN_MENU_START_BUTTON_WIDTH, 0);
+        image.setPreserveRatio(true);
+        image.setMouseTransparent(true);
+        return image;
+    }
+
+    private void layoutMainMenuBackground(ImageView background, StackPane startButton, StackPane exitButton, StackPane root) {
+        fitBattleBackground(background, root);
+        Image image = background.getImage();
+        if (image == null || image.getWidth() <= 0 || image.getHeight() <= 0 || background.getFitWidth() <= 0) {
+            return;
+        }
+
+        double scale = background.getFitWidth() / image.getWidth();
+        double buttonWidth = MAIN_MENU_START_BUTTON_WIDTH * scale;
+        double buttonHeight = mainMenuButtonHeight(startButton, buttonWidth);
+        double buttonX = background.getLayoutX() + MAIN_MENU_START_BUTTON_X * scale;
+        double startButtonY = background.getLayoutY() + MAIN_MENU_START_BUTTON_Y * scale;
+        layoutMainMenuButton(startButton, buttonX, startButtonY, buttonWidth, buttonHeight);
+        layoutMainMenuButton(exitButton,
+                buttonX,
+                startButtonY + buttonHeight + MAIN_MENU_BUTTON_GAP * scale,
+                buttonWidth,
+                buttonHeight);
+    }
+
+    private void layoutMainMenuButton(StackPane button, double x, double y, double width, double height) {
+        button.resizeRelocate(x, y, width, height);
+        if (!button.getChildren().isEmpty() && button.getChildren().get(0) instanceof ImageView buttonImage) {
+            buttonImage.setFitWidth(width);
+            buttonImage.setFitHeight(0);
+        }
+    }
+
+    private double mainMenuButtonHeight(StackPane startButton, double buttonWidth) {
+        if (!startButton.getChildren().isEmpty() && startButton.getChildren().get(0) instanceof ImageView imageView) {
+            Rectangle2D viewport = imageView.getViewport();
+            Image image = imageView.getImage();
+            double sourceWidth = viewport == null ? image == null ? 0 : image.getWidth() : viewport.getWidth();
+            double sourceHeight = viewport == null ? image == null ? 0 : image.getHeight() : viewport.getHeight();
+            if (sourceWidth > 0 && sourceHeight > 0) {
+                return buttonWidth * sourceHeight / sourceWidth;
+            }
+        }
+        return buttonWidth / MAIN_MENU_START_BUTTON_FALLBACK_ASPECT;
+    }
+
+    private StackPane createCharacterSelectView() {
         List<PlayableCharacter> characters = engine.getAvailableCharacters();
         if (characters.isEmpty()) {
             throw new IllegalStateException("at least one playable character is required");
@@ -200,134 +387,217 @@ public class GameApplication extends Application {
         String[] selectedCharacterId = {characters.get(0).id()};
         List<Button> characterButtons = new ArrayList<>();
 
-        Label title = new Label("选择角色");
-        title.setStyle("-fx-text-fill: #f6dfad; -fx-font-size: 38px; -fx-font-weight: bold;");
-
-        Label subtitle = new Label("角色决定初始牌组和本次远征可获得的奖励牌池");
-        subtitle.setStyle("-fx-text-fill: #d6c8ab; -fx-font-size: 16px;");
-
-        HBox characterCards = new HBox(18);
-        characterCards.setAlignment(Pos.CENTER);
-        characterCards.setFillHeight(false);
+        HBox characterChoices = new HBox(CHARACTER_SELECT_CHOICE_GAP);
+        characterChoices.setAlignment(Pos.CENTER);
+        characterChoices.setFillHeight(false);
         for (PlayableCharacter character : characters) {
-            Button card = createCharacterCard(character);
-            card.setOnAction(event -> {
+            Button choice = createCharacterChoice(character);
+            choice.setOnAction(event -> {
                 selectedCharacterId[0] = character.id();
                 refreshCharacterSelection(characterButtons, selectedCharacterId[0]);
             });
-            characterButtons.add(card);
-            characterCards.getChildren().add(card);
+            characterButtons.add(choice);
+            characterChoices.getChildren().add(choice);
         }
         refreshCharacterSelection(characterButtons, selectedCharacterId[0]);
 
-        Button departButton = new Button("出发");
-        departButton.setStyle(primaryButtonStyle() + "-fx-font-size: 18px; -fx-padding: 12 34 12 34;");
-        departButton.setOnAction(event -> {
+        StackPane departButton = createCharacterSelectImageButton(CHARACTER_SELECT_DEPART_BUTTON_RESOURCE, () -> {
             engine.startNewRun(selectedCharacterId[0]);
             mapViewportOffsetY = Double.NaN;
             setRoot(createMapView());
         });
 
-        Button backButton = new Button("返回主菜单");
-        backButton.setStyle(secondaryButtonStyle());
-        backButton.setOnAction(event -> setRoot(createMainMenu()));
+        StackPane backButton = createCharacterSelectImageButton(CHARACTER_SELECT_BACK_BUTTON_RESOURCE,
+                () -> setRoot(createMainMenu()));
 
-        HBox actions = new HBox(12, departButton, backButton);
+        VBox actions = new VBox(CHARACTER_SELECT_BUTTON_GAP, departButton, backButton);
         actions.setAlignment(Pos.CENTER);
+        actions.setFillWidth(false);
 
-        VBox content = new VBox(18, title, subtitle, characterCards, actions);
-        content.setAlignment(Pos.CENTER);
+        VBox choiceArea = new VBox(characterChoices);
+        choiceArea.setAlignment(Pos.CENTER);
+        choiceArea.setPadding(new Insets(CHARACTER_SELECT_HEADER_SPACE, 0, 0, 0));
+        choiceArea.setTranslateY(CHARACTER_SELECT_CHOICE_AREA_OFFSET_Y);
 
-        BorderPane root = baseRoot();
-        root.setCenter(content);
+        BorderPane contentRoot = new BorderPane();
+        contentRoot.setPadding(new Insets(16));
+        contentRoot.setStyle("-fx-background-color: transparent;");
+        contentRoot.setCenter(choiceArea);
+        contentRoot.setBottom(actions);
+        BorderPane.setAlignment(actions, Pos.CENTER);
+        BorderPane.setMargin(actions, new Insets(0, 0, CHARACTER_SELECT_BUTTON_BOTTOM_MARGIN, 0));
+
+        StackPane root = new StackPane();
+        root.setStyle("-fx-background-color: #050506;");
+        clipToBounds(root);
+        root.getChildren().addAll(createCharacterSelectBackgroundLayer(), contentRoot);
         return root;
     }
 
-    private Button createCharacterCard(PlayableCharacter character) {
-        DeckSummary starterSummary = DeckSummary.from(character.createStarterDeck());
+    private StackPane createCharacterSelectBackgroundLayer() {
+        StackPane backdrop = new StackPane();
+        backdrop.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        backdrop.setMouseTransparent(true);
 
-        Label name = new Label(character.name());
-        name.setStyle("-fx-text-fill: #f7f0df; -fx-font-size: 24px; -fx-font-weight: bold;");
-
-        Label archetype = new Label(character.archetype());
-        archetype.setStyle("-fx-text-fill: #f2c078; -fx-font-size: 15px; -fx-font-weight: bold;");
-
-        Label description = new Label(character.description());
-        description.setWrapText(true);
-        description.setTextAlignment(TextAlignment.CENTER);
-        description.setStyle("-fx-text-fill: #d6c8ab; -fx-font-size: 13px;");
-        description.setMaxWidth(260);
-
-        Label stats = new Label("生命 " + character.maxHealth()
-                + "  能量 " + character.maxEnergy()
-                + "  每回合抽 " + character.handSize());
-        stats.setStyle("-fx-text-fill: #ddd6c3; -fx-font-size: 13px; -fx-font-weight: bold;");
-
-        Label deck = new Label("初始牌 " + starterSummary.getTotalCards()
-                + " 张｜攻击 " + starterSummary.getAttackCount()
-                + "｜技能 " + starterSummary.getSkillCount()
-                + "｜战术 " + starterSummary.getTacticCount()
-                + "\n奖励池 " + character.createRewardPool().size() + " 张");
-        deck.setWrapText(true);
-        deck.setTextAlignment(TextAlignment.CENTER);
-        deck.setStyle("-fx-text-fill: #c8c2b6; -fx-font-size: 13px;");
-
-        VBox content = new VBox(11, createCharacterPreview(character), name, archetype, description, stats, deck);
-        content.setAlignment(Pos.CENTER);
-        content.setPadding(new Insets(16));
-        content.setPrefWidth(310);
-        content.setMinWidth(310);
-        content.setMaxWidth(310);
-
-        Button card = new Button();
-        card.setGraphic(content);
-        card.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
-        card.setUserData(character);
-        card.setPrefWidth(330);
-        card.setMinWidth(330);
-        card.setMaxWidth(330);
-        card.setPrefHeight(460);
-        card.setMinHeight(460);
-        card.setMaxHeight(460);
-        return card;
-    }
-
-    private StackPane createCharacterPreview(PlayableCharacter character) {
-        StackPane preview = new StackPane();
-        preview.setPrefSize(210, 130);
-        preview.setMinSize(210, 130);
-        preview.setMaxSize(210, 130);
-
-        Region glow = new Region();
-        glow.setPrefSize(168, 92);
-        glow.setStyle("-fx-background-color: radial-gradient(center 50% 50%, radius 70%, rgba(242, 192, 120, 0.35), rgba(242, 192, 120, 0));"
-                + "-fx-background-radius: 84;");
-
-        StackPane portraitHolder = new StackPane();
-        portraitHolder.setPrefSize(120, 124);
-        var resource = GameApplication.class.getResource("/assets/portraits/player.png");
+        var resource = GameApplication.class.getResource(CHARACTER_SELECT_BACKGROUND_RESOURCE);
         if (resource != null) {
-            ImageView portrait = new ImageView(new Image(resource.toExternalForm()));
-            portrait.setPreserveRatio(true);
-            portrait.setSmooth(true);
-            portrait.setFitHeight(132);
-            portraitHolder.getChildren().add(portrait);
-        } else {
-            Label fallback = new Label(character.name().substring(0, 1));
-            fallback.setAlignment(Pos.CENTER);
-            fallback.setStyle("-fx-text-fill: #f7f0df; -fx-font-size: 42px; -fx-font-weight: bold;");
-            portraitHolder.getChildren().add(fallback);
+            ImageView background = new ImageView(new Image(resource.toExternalForm()));
+            background.setManaged(false);
+            background.setPreserveRatio(false);
+            background.setSmooth(true);
+            background.setCache(true);
+            background.setMouseTransparent(true);
+            backdrop.widthProperty().addListener((observable, oldValue, newValue) -> fitBattleBackground(background, backdrop));
+            backdrop.heightProperty().addListener((observable, oldValue, newValue) -> fitBattleBackground(background, backdrop));
+            Platform.runLater(() -> fitBattleBackground(background, backdrop));
+            backdrop.getChildren().add(background);
         }
 
-        preview.getChildren().addAll(glow, portraitHolder);
-        return preview;
+        return backdrop;
+    }
+
+    private StackPane createCharacterSelectImageButton(String resourcePath, Runnable action) {
+        ImageView image = createUiImageView(resourcePath, CHARACTER_SELECT_BUTTON_WIDTH, 0);
+        ColorAdjust colorAdjust = new ColorAdjust();
+        image.setEffect(colorAdjust);
+
+        double buttonHeight = imageButtonHeight(image, CHARACTER_SELECT_BUTTON_WIDTH);
+        StackPane button = new StackPane(image);
+        button.setAlignment(Pos.CENTER);
+        button.setPrefSize(CHARACTER_SELECT_BUTTON_WIDTH, buttonHeight);
+        button.setMinSize(CHARACTER_SELECT_BUTTON_WIDTH, buttonHeight);
+        button.setMaxSize(CHARACTER_SELECT_BUTTON_WIDTH, buttonHeight);
+        button.setPickOnBounds(true);
+        button.setStyle("-fx-background-color: transparent; -fx-border-color: transparent; -fx-padding: 0; -fx-cursor: hand;");
+        button.setOnMouseEntered(event -> {
+            button.setScaleX(1.025);
+            button.setScaleY(1.025);
+            colorAdjust.setBrightness(0.07);
+        });
+        button.setOnMouseExited(event -> {
+            button.setScaleX(1.0);
+            button.setScaleY(1.0);
+            colorAdjust.setBrightness(0.0);
+        });
+        button.setOnMousePressed(event -> {
+            button.setScaleX(0.985);
+            button.setScaleY(0.985);
+            colorAdjust.setBrightness(0.03);
+        });
+        button.setOnMouseReleased(event -> {
+            boolean hover = button.isHover();
+            button.setScaleX(hover ? 1.025 : 1.0);
+            button.setScaleY(hover ? 1.025 : 1.0);
+            colorAdjust.setBrightness(hover ? 0.07 : 0.0);
+        });
+        button.setOnMouseClicked(event -> {
+            action.run();
+            event.consume();
+        });
+        return button;
+    }
+
+    private double imageButtonHeight(ImageView imageView, double buttonWidth) {
+        Rectangle2D viewport = imageView.getViewport();
+        Image image = imageView.getImage();
+        double sourceWidth = viewport == null ? image == null ? 0 : image.getWidth() : viewport.getWidth();
+        double sourceHeight = viewport == null ? image == null ? 0 : image.getHeight() : viewport.getHeight();
+        if (sourceWidth > 0 && sourceHeight > 0) {
+            return buttonWidth * sourceHeight / sourceWidth;
+        }
+        return buttonWidth * 0.42;
+    }
+
+    private Button createCharacterChoice(PlayableCharacter character) {
+        Region glow = new Region();
+        glow.setPrefSize(CHARACTER_CHOICE_GLOW_WIDTH, CHARACTER_CHOICE_GLOW_HEIGHT);
+        glow.setMinSize(CHARACTER_CHOICE_GLOW_WIDTH, CHARACTER_CHOICE_GLOW_HEIGHT);
+        glow.setMaxSize(CHARACTER_CHOICE_GLOW_WIDTH, CHARACTER_CHOICE_GLOW_HEIGHT);
+        glow.setMouseTransparent(true);
+
+        CharacterPortrait portrait = CharacterPortrait.player(character.id());
+        portrait.setMouseTransparent(true);
+
+        StackPane portraitArea = new StackPane(glow, portrait);
+        portraitArea.setAlignment(Pos.CENTER);
+        portraitArea.setPrefSize(CHARACTER_CHOICE_PORTRAIT_AREA_WIDTH, CHARACTER_CHOICE_PORTRAIT_AREA_HEIGHT);
+        portraitArea.setMinSize(CHARACTER_CHOICE_PORTRAIT_AREA_WIDTH, CHARACTER_CHOICE_PORTRAIT_AREA_HEIGHT);
+        portraitArea.setMaxSize(CHARACTER_CHOICE_PORTRAIT_AREA_WIDTH, CHARACTER_CHOICE_PORTRAIT_AREA_HEIGHT);
+        portraitArea.setMouseTransparent(true);
+
+        Label name = new Label(character.name());
+        name.setAlignment(Pos.CENTER);
+        name.setTextAlignment(TextAlignment.CENTER);
+        name.setPrefWidth(CHARACTER_CHOICE_WIDTH);
+        name.setMinWidth(CHARACTER_CHOICE_WIDTH);
+        name.setMaxWidth(CHARACTER_CHOICE_WIDTH);
+        name.setMouseTransparent(true);
+
+        VBox content = new VBox(4, portraitArea, name);
+        content.setAlignment(Pos.CENTER);
+        content.setPrefSize(CHARACTER_CHOICE_WIDTH, CHARACTER_CHOICE_HEIGHT);
+        content.setMinSize(CHARACTER_CHOICE_WIDTH, CHARACTER_CHOICE_HEIGHT);
+        content.setMaxSize(CHARACTER_CHOICE_WIDTH, CHARACTER_CHOICE_HEIGHT);
+        content.setMouseTransparent(true);
+
+        Button choice = new Button();
+        choice.setGraphic(content);
+        choice.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+        choice.setUserData(new CharacterChoice(character, portrait, glow, name));
+        choice.setPrefSize(CHARACTER_CHOICE_WIDTH, CHARACTER_CHOICE_HEIGHT);
+        choice.setMinSize(CHARACTER_CHOICE_WIDTH, CHARACTER_CHOICE_HEIGHT);
+        choice.setMaxSize(CHARACTER_CHOICE_WIDTH, CHARACTER_CHOICE_HEIGHT);
+        choice.setPickOnBounds(true);
+        return choice;
     }
 
     private void refreshCharacterSelection(List<Button> characterButtons, String selectedCharacterId) {
         for (Button button : characterButtons) {
-            PlayableCharacter character = (PlayableCharacter) button.getUserData();
-            button.setStyle(characterCardStyle(character.id().equals(selectedCharacterId)));
+            CharacterChoice choice = (CharacterChoice) button.getUserData();
+            boolean selected = choice.character().id().equals(selectedCharacterId);
+            button.setStyle(characterChoiceStyle(selected));
+            button.setScaleX(selected ? 1.035 : 1.0);
+            button.setScaleY(selected ? 1.035 : 1.0);
+            choice.portrait().setOpacity(selected ? 1.0 : 0.82);
+            choice.portrait().setEffect(characterChoiceAdjust(selected));
+            choice.glow().setStyle(characterChoiceGlowStyle(selected));
+            choice.name().setStyle(characterChoiceNameStyle(selected));
         }
+    }
+
+    private ColorAdjust characterChoiceAdjust(boolean selected) {
+        ColorAdjust adjust = new ColorAdjust();
+        adjust.setBrightness(selected ? 0.10 : -0.08);
+        adjust.setContrast(selected ? 0.08 : -0.04);
+        adjust.setSaturation(selected ? 0.10 : -0.18);
+        return adjust;
+    }
+
+    private String characterChoiceGlowStyle(boolean selected) {
+        String glowColor = selected ? "rgba(242, 192, 120, 0.48)" : "rgba(0, 0, 0, 0.22)";
+        return "-fx-background-color: radial-gradient(center 50% 55%, radius 72%, "
+                + glowColor + ", rgba(242, 192, 120, 0));"
+                + "-fx-background-radius: 118;";
+    }
+
+    private String characterChoiceNameStyle(boolean selected) {
+        String text = selected ? "#fff1c8" : "#d5c4aa";
+        String shadow = selected
+                ? "dropshadow(gaussian, rgba(94, 43, 18, 0.95), 6, 0.7, 0, 2)"
+                : "dropshadow(gaussian, rgba(0, 0, 0, 0.88), 5, 0.6, 0, 1)";
+        return "-fx-text-fill: " + text + ";"
+                + "-fx-font-size: 27px;"
+                + "-fx-font-family: \"STXingkai\", \"STKaiti\", \"KaiTi\", \"FangSong\", \"Serif\";"
+                + "-fx-font-weight: bold;"
+                + "-fx-effect: " + shadow + ";";
+    }
+
+    private record CharacterChoice(
+            PlayableCharacter character,
+            CharacterPortrait portrait,
+            Region glow,
+            Label name
+    ) {
     }
 
     private void showCharacterSelect() {
@@ -343,6 +613,7 @@ public class GameApplication extends Application {
         StackPane overlayLayer = new StackPane();
         overlayLayer.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
         overlayLayer.setPickOnBounds(false);
+        overlayLayer.setMouseTransparent(true);
 
         HBox header = createMapHeader(run, overlayLayer);
         StackPane.setAlignment(header, Pos.TOP_CENTER);
@@ -353,35 +624,36 @@ public class GameApplication extends Application {
     }
 
     private HBox createMapHeader(RunState run, StackPane overlayLayer) {
-        Label character = mapStatusLabel("角色 " + run.getPlayer().getName());
-        Label health = mapStatusLabel("生命 " + run.getPlayer().getHealth() + "/" + run.getPlayer().getMaxHealth());
-        Label gold = mapStatusLabel("金币 " + run.getGold());
-        Label potions = mapStatusLabel("药水 0");
+        StackPane playerHeader = createPlayerHeaderPanel();
+        updatePlayerHeaderHealth(run.getPlayer().getHealth(), run.getPlayer().getMaxHealth());
+        HBox goldCounter = createResourceCounter(BATTLE_GOLD_RESOURCE, String.valueOf(run.getGold()), "金币");
+
+        HBox leftStatus = new HBox(10, playerHeader, goldCounter);
+        leftStatus.setAlignment(Pos.TOP_LEFT);
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        Button deckButton = new Button("牌组");
-        deckButton.setStyle(mapHeaderButtonStyle());
-        deckButton.setOnAction(event -> showMapDeckOverlay(overlayLayer, run));
+        StackPane deckButton = createBattleIconButton(BATTLE_DECK_BUTTON_RESOURCE,
+                "牌组",
+                () -> showMapDeckOverlay(overlayLayer, run));
+        StackPane settingsButton = createBattleIconButton(BATTLE_SETTINGS_RESOURCE,
+                "设置",
+                () -> showMapSettingsOverlay(overlayLayer, run));
+        HBox buttons = new HBox(BATTLE_ACTION_BUTTON_GAP, deckButton, settingsButton);
+        buttons.setAlignment(Pos.TOP_RIGHT);
+        buttons.setMinSize(battleTopRightButtonsWidth(), BATTLE_ACTION_BUTTON_SIZE);
+        buttons.setPrefSize(battleTopRightButtonsWidth(), BATTLE_ACTION_BUTTON_SIZE);
+        buttons.setMaxSize(battleTopRightButtonsWidth(), BATTLE_ACTION_BUTTON_SIZE);
+        settingsButton.toFront();
 
-        Button settingsButton = new Button("设置");
-        settingsButton.setStyle(mapHeaderButtonStyle());
-        settingsButton.setOnAction(event -> showMapSettingsOverlay(overlayLayer, run));
-
-        HBox header = new HBox(14, character, health, gold, potions, spacer, deckButton, settingsButton);
-        header.setAlignment(Pos.CENTER_LEFT);
-        header.setPrefHeight(58);
-        header.setMinHeight(58);
-        header.setMaxHeight(58);
+        HBox header = new HBox(14, leftStatus, spacer, buttons);
+        header.setAlignment(Pos.TOP_CENTER);
+        header.setPrefHeight(PLAYER_HEADER_HEIGHT);
+        header.setMinHeight(PLAYER_HEADER_HEIGHT);
+        header.setMaxHeight(PLAYER_HEADER_HEIGHT);
         header.setMaxWidth(Double.MAX_VALUE);
-        header.setPadding(new Insets(10, 14, 10, 14));
-        header.setStyle("-fx-background-color: rgba(14, 13, 11, 0.78);"
-                + "-fx-border-color: rgba(221, 184, 114, 0.56);"
-                + "-fx-border-width: 1.4;"
-                + "-fx-border-radius: 8;"
-                + "-fx-background-radius: 8;"
-                + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.58), 16, 0.28, 0, 4);");
+        header.setPadding(new Insets(0, 14, 0, 14));
         return header;
     }
 
@@ -572,102 +844,535 @@ public class GameApplication extends Application {
     }
 
     private void showMapDeckOverlay(StackPane overlayLayer, RunState run) {
-        DeckSummary summary = DeckSummary.from(run.getDeck());
-        Label title = new Label("当前远征牌组");
-        title.setStyle("-fx-text-fill: #f6dfad; -fx-font-size: 28px; -fx-font-weight: bold;");
-
-        VBox deckContent = createDeckContent(summary, "拥有的卡牌");
-        deckContent.setPrefSize(760, 300);
-        VBox.setVgrow(deckContent, Priority.ALWAYS);
-
-        Button close = new Button("关闭");
-        close.setStyle(primaryButtonStyle());
-        close.setOnAction(event -> closeMapOverlay(overlayLayer));
-
-        VBox panel = new VBox(16, title, deckContent, close);
-        panel.setAlignment(Pos.CENTER);
-        panel.setMaxSize(900, 500);
-        panel.setPadding(new Insets(24));
-        panel.setStyle(mapModalPanelStyle());
-        showMapOverlay(overlayLayer, panel);
+        showDeckOverlay(overlayLayer, run.getDeck());
     }
 
     private void showMapSettingsOverlay(StackPane overlayLayer, RunState run) {
-        Label title = new Label("设置");
-        title.setStyle("-fx-text-fill: #f6dfad; -fx-font-size: 28px; -fx-font-weight: bold;");
+        showGameMenuOverlay(overlayLayer);
+    }
 
-        ImageView legendImage = new ImageView(new Image(MAP_LEGEND_RESOURCE));
-        legendImage.setFitWidth(180);
-        legendImage.setPreserveRatio(true);
-        legendImage.setSmooth(true);
+    private void showDeckOverlay(StackPane overlayLayer, List<Card> deck) {
+        List<DeckCardView> cards = deckCardViews(deck);
+        DeckSortMode[] selectedMode = {DeckSortMode.ACQUIRED};
+        Map<DeckSortMode, Boolean> sortDirections = new EnumMap<>(DeckSortMode.class);
+        Map<DeckSortMode, Button> sortButtons = new EnumMap<>(DeckSortMode.class);
+        for (DeckSortMode mode : DeckSortMode.values()) {
+            sortDirections.put(mode, true);
+        }
 
-        VBox legendRows = new VBox(10,
-                legendExplanationRow(MapNodeType.EVENT, "不明事件，可能带来收益或风险。"),
-                legendExplanationRow(MapNodeType.SHOP, "商人补给，可购买卡牌或删除卡牌。"),
-                legendExplanationRow(MapNodeType.REST, "休息营地，可恢复 30% 最大生命或升级卡牌。"),
-                legendExplanationRow(MapNodeType.NORMAL, "普通敌人，胜利后获得奖励。"),
-                legendExplanationRow(MapNodeType.ELITE, "精英敌人，战斗更危险，金币奖励更高。"),
-                legendExplanationRow(MapNodeType.BOSS, "终点首领，击败后完成本次远征。")
-        );
+        TilePane cardGrid = new TilePane();
+        cardGrid.setAlignment(Pos.TOP_CENTER);
+        cardGrid.setTileAlignment(Pos.CENTER);
+        cardGrid.setPrefColumns(DECK_BROWSER_COLUMNS);
+        cardGrid.setMinWidth(0);
+        cardGrid.setHgap(DECK_BROWSER_CARD_HGAP);
+        cardGrid.setVgap(DECK_BROWSER_CARD_VGAP);
+        cardGrid.setPadding(new Insets(18, 14, 34, 14));
 
-        HBox legend = new HBox(22, legendImage, legendRows);
-        legend.setAlignment(Pos.CENTER_LEFT);
+        HBox sortBar = new HBox(0);
+        sortBar.setAlignment(Pos.CENTER);
+        sortBar.setMinHeight(DECK_BROWSER_SORT_BAR_HEIGHT);
+        sortBar.setPrefHeight(DECK_BROWSER_SORT_BAR_HEIGHT);
+        sortBar.setMaxHeight(DECK_BROWSER_SORT_BAR_HEIGHT);
+        sortBar.setMinWidth(0);
+        sortBar.setStyle(deckBrowserSortBarStyle());
+        for (DeckSortMode mode : DeckSortMode.values()) {
+            Button sortButton = new Button();
+            sortButton.setMaxWidth(Double.MAX_VALUE);
+            sortButton.setPrefHeight(DECK_BROWSER_SORT_BAR_HEIGHT - 6);
+            HBox.setHgrow(sortButton, Priority.ALWAYS);
+            sortButton.setOnAction(event -> {
+                if (selectedMode[0] == mode) {
+                    sortDirections.put(mode, !sortDirections.get(mode));
+                } else {
+                    selectedMode[0] = mode;
+                }
+                refreshDeckSortButtons(sortButtons, selectedMode[0], sortDirections);
+                refreshDeckBrowserGrid(cardGrid, cards, selectedMode[0], sortDirections.get(selectedMode[0]));
+            });
+            sortButton.setOnMouseEntered(event ->
+                    sortButton.setStyle(deckSortButtonStyle(mode == selectedMode[0], true)));
+            sortButton.setOnMouseExited(event ->
+                    sortButton.setStyle(deckSortButtonStyle(mode == selectedMode[0], false)));
+            sortButtons.put(mode, sortButton);
+            sortBar.getChildren().add(sortButton);
+        }
 
-        Label saveHint = new Label("当前版本未实现持久化存档，“保存并退出”会返回主菜单。");
-        saveHint.setWrapText(true);
-        saveHint.setStyle("-fx-text-fill: #cfc4ae; -fx-font-size: 13px;");
+        StackPane gridHolder = new StackPane(cardGrid);
+        gridHolder.setAlignment(Pos.TOP_CENTER);
+        gridHolder.setStyle(deckBrowserGridHolderStyle());
+
+        ScrollPane scroll = new ScrollPane(gridHolder);
+        scroll.setFitToWidth(true);
+        scroll.setFitToHeight(false);
+        scroll.setPannable(true);
+        scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scroll.setStyle(deckBrowserScrollStyle());
+        VBox.setVgrow(scroll, Priority.ALWAYS);
+
+        cardGrid.prefWidthProperty().bind(Bindings.createDoubleBinding(
+                () -> deckBrowserCardGridWidth(scroll.getWidth()),
+                scroll.widthProperty()));
+        cardGrid.maxWidthProperty().bind(cardGrid.prefWidthProperty());
+        sortBar.prefWidthProperty().bind(Bindings.createDoubleBinding(
+                () -> deckBrowserSortBarWidth(scroll.getWidth()),
+                scroll.widthProperty()));
+        sortBar.maxWidthProperty().bind(sortBar.prefWidthProperty());
+
+        VBox browser = new VBox(24, sortBar, scroll);
+        browser.setAlignment(Pos.TOP_CENTER);
+        browser.setPadding(new Insets(14, 18, 18, 18));
+        browser.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        browser.setStyle(deckBrowserBoardInnerStyle());
+
+        StackPane board = new StackPane(browser);
+        board.setMinWidth(0);
+        board.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        board.setStyle(deckBrowserBoardStyle());
+        HBox.setHgrow(board, Priority.ALWAYS);
+
+        HBox body = new HBox(DECK_BROWSER_BODY_GAP, createDeckBrowserSidebar(engine.getRunState()), board);
+        body.setAlignment(Pos.TOP_CENTER);
+        body.setFillHeight(true);
+        body.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        VBox.setVgrow(body, Priority.ALWAYS);
+
+        VBox layout = new VBox(12, createDeckBrowserTitleBar(), body);
+        layout.setAlignment(Pos.TOP_CENTER);
+        layout.setPadding(new Insets(DECK_BROWSER_TOP_INSET, DECK_BROWSER_SIDE_INSET,
+                DECK_BROWSER_BOTTOM_INSET, DECK_BROWSER_SIDE_INSET));
+        layout.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+
+        Label hint = new Label("这些牌将会出现在每一场战斗中。");
+        hint.setAlignment(Pos.CENTER);
+        hint.setTextAlignment(TextAlignment.CENTER);
+        hint.setStyle(deckBrowserHintStyle());
+        StackPane.setAlignment(hint, Pos.BOTTOM_CENTER);
+        StackPane.setMargin(hint, new Insets(0, 0, 22, 0));
 
         Button close = new Button("返回");
-        close.setStyle(secondaryButtonStyle());
-        close.setOnAction(event -> closeMapOverlay(overlayLayer));
+        close.setStyle(deckBrowserCloseButtonStyle());
+        close.setMinWidth(118);
+        close.setOnMouseEntered(event -> close.setStyle(deckBrowserCloseButtonStyle(true)));
+        close.setOnMouseExited(event -> close.setStyle(deckBrowserCloseButtonStyle(false)));
+        close.setOnMousePressed(event -> {
+            close.setScaleX(0.98);
+            close.setScaleY(0.98);
+        });
+        close.setOnMouseReleased(event -> {
+            close.setScaleX(1.0);
+            close.setScaleY(1.0);
+        });
+        close.setOnAction(event -> closeOverlay(overlayLayer));
+        StackPane.setAlignment(close, Pos.BOTTOM_LEFT);
+        StackPane.setMargin(close, new Insets(0, 0, 22, 34));
 
-        Button saveExit = new Button("保存并退出");
-        saveExit.setStyle(primaryButtonStyle());
-        saveExit.setOnAction(event -> setRoot(createMainMenu()));
+        StackPane panel = new StackPane(createDeckBrowserBackdrop(), layout, hint, close);
+        panel.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        panel.setStyle("-fx-background-color: #050404;");
+        clipToBounds(panel);
 
-        HBox actions = new HBox(12, close, saveExit);
-        actions.setAlignment(Pos.CENTER_RIGHT);
-
-        VBox panel = new VBox(18, title, legend, saveHint, actions);
-        panel.setMaxSize(760, 560);
-        panel.setPadding(new Insets(26));
-        panel.setStyle(mapModalPanelStyle());
-        showMapOverlay(overlayLayer, panel);
+        refreshDeckSortButtons(sortButtons, selectedMode[0], sortDirections);
+        refreshDeckBrowserGrid(cardGrid, cards, selectedMode[0], sortDirections.get(selectedMode[0]));
+        showOverlay(overlayLayer, panel);
     }
 
-    private HBox legendExplanationRow(MapNodeType type, String text) {
-        StackPane icon = new StackPane(createMapNodeIcon(type, 48));
-        icon.setMinSize(54, 54);
-        icon.setPrefSize(54, 54);
-        icon.setMaxSize(54, 54);
-        icon.setAlignment(Pos.CENTER);
-        icon.setStyle("-fx-background-color: radial-gradient(center 50% 42%, radius 72%, rgba(232, 205, 145, 0.92), rgba(72, 50, 28, 0.72));"
-                + "-fx-border-color: rgba(44, 31, 19, 0.78);"
-                + "-fx-border-width: 1.6;"
-                + "-fx-border-radius: 27;"
-                + "-fx-background-radius: 27;"
-                + "-fx-effect: dropshadow(gaussian, rgba(24, 13, 6, 0.58), 8, 0.22, 0, 3);");
-
-        Label label = new Label(type.getDisplayName() + "：" + text);
-        label.setWrapText(true);
-        label.setStyle("-fx-text-fill: #eee3c6; -fx-font-size: 15px;");
-        HBox row = new HBox(12, icon, label);
-        row.setAlignment(Pos.CENTER_LEFT);
-        return row;
+    private double deckBrowserMaxCardGridWidth() {
+        return HAND_CARD_WIDTH * DECK_BROWSER_COLUMNS + DECK_BROWSER_CARD_HGAP * (DECK_BROWSER_COLUMNS - 1);
     }
 
-    private void showMapOverlay(StackPane overlayLayer, Node panel) {
+    private double deckBrowserCardGridWidth(double availableWidth) {
+        if (availableWidth <= 0) {
+            return deckBrowserMaxCardGridWidth();
+        }
+        double innerWidth = Math.max(HAND_CARD_WIDTH, availableWidth - 38);
+        return Math.min(deckBrowserMaxCardGridWidth(), innerWidth);
+    }
+
+    private double deckBrowserSortBarWidth(double availableWidth) {
+        return Math.max(360, deckBrowserCardGridWidth(availableWidth) * DECK_BROWSER_SORT_BAR_WIDTH_RATIO);
+    }
+
+    private StackPane createDeckBrowserBackdrop() {
+        StackPane backdrop = new StackPane();
+        backdrop.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        backdrop.setMouseTransparent(true);
+
+        var resource = GameApplication.class.getResource(BATTLE_SCENE_BACKGROUND_RESOURCE);
+        if (resource != null) {
+            ImageView background = new ImageView(new Image(resource.toExternalForm()));
+            background.setManaged(false);
+            background.setPreserveRatio(false);
+            background.setSmooth(true);
+            background.setCache(true);
+            backdrop.widthProperty().addListener((observable, oldValue, newValue) -> fitBattleBackground(background, backdrop));
+            backdrop.heightProperty().addListener((observable, oldValue, newValue) -> fitBattleBackground(background, backdrop));
+            Platform.runLater(() -> fitBattleBackground(background, backdrop));
+            backdrop.getChildren().add(background);
+        }
+
+        Region shade = new Region();
+        shade.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        shade.setStyle("-fx-background-color: linear-gradient(to bottom, "
+                + "rgba(0, 0, 0, 0.76), rgba(10, 7, 8, 0.68) 42%, rgba(0, 0, 0, 0.84));");
+
+        Region bloodWash = new Region();
+        bloodWash.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        bloodWash.setStyle("-fx-background-color: radial-gradient(center 50% 24%, radius 72%, "
+                + "rgba(114, 20, 18, 0.22), rgba(17, 5, 5, 0.06) 52%, rgba(0, 0, 0, 0.62) 100%);");
+
+        Region edgeVignette = new Region();
+        edgeVignette.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        edgeVignette.setStyle("-fx-background-color: radial-gradient(center 50% 48%, radius 76%, "
+                + "rgba(0, 0, 0, 0.00), rgba(0, 0, 0, 0.22) 58%, rgba(0, 0, 0, 0.82) 100%);");
+
+        backdrop.getChildren().addAll(shade, bloodWash, edgeVignette);
+        return backdrop;
+    }
+
+    private StackPane createDeckBrowserTitleBar() {
+        Label title = new Label("牌组构筑");
+        title.setAlignment(Pos.CENTER);
+        title.setTextAlignment(TextAlignment.CENTER);
+        title.setStyle(deckBrowserTitleStyle());
+
+        Region leftLine = deckBrowserTitleLine();
+        Region rightLine = deckBrowserTitleLine();
+        HBox titleRow = new HBox(18, leftLine, title, rightLine);
+        titleRow.setAlignment(Pos.CENTER);
+
+        Label crest = new Label("◆");
+        crest.setMouseTransparent(true);
+        crest.setStyle("-fx-text-fill: rgba(230, 184, 112, 0.66);"
+                + "-fx-font-size: 14px;"
+                + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.95), 4, 0.65, 0, 1);");
+        StackPane.setAlignment(crest, Pos.BOTTOM_CENTER);
+        StackPane.setMargin(crest, new Insets(0, 0, 1, 0));
+
+        StackPane titleBar = new StackPane(titleRow, crest);
+        titleBar.setMinHeight(54);
+        titleBar.setPrefHeight(58);
+        titleBar.setMaxHeight(64);
+        titleBar.setStyle(deckBrowserTitleBarStyle());
+        return titleBar;
+    }
+
+    private Region deckBrowserTitleLine() {
+        Region line = new Region();
+        line.setPrefSize(190, 2);
+        line.setMaxWidth(190);
+        line.setStyle("-fx-background-color: linear-gradient(to right, "
+                + "rgba(64, 41, 31, 0.00), rgba(116, 95, 68, 0.82), rgba(161, 37, 27, 0.34), rgba(64, 41, 31, 0.00));");
+        HBox.setHgrow(line, Priority.ALWAYS);
+        return line;
+    }
+
+    private VBox createDeckBrowserSidebar(RunState run) {
+        PlayableCharacter character = run == null ? null : run.getPlayableCharacter();
+
+        Label name = new Label(deckBrowserCharacterName(character));
+        name.setAlignment(Pos.CENTER);
+        name.setTextAlignment(TextAlignment.CENTER);
+        name.setMaxWidth(DECK_BROWSER_SIDEBAR_WIDTH - 24);
+        name.setStyle(deckBrowserSidebarNameStyle());
+
+        Label archetype = new Label(deckBrowserCharacterArchetype(character));
+        archetype.setAlignment(Pos.CENTER);
+        archetype.setTextAlignment(TextAlignment.CENTER);
+        archetype.setWrapText(true);
+        archetype.setMaxWidth(DECK_BROWSER_SIDEBAR_WIDTH - 30);
+        archetype.setStyle(deckBrowserSidebarTextStyle());
+
+        Label count = new Label(run == null ? "" : run.getDeck().size() + " 张牌");
+        count.setAlignment(Pos.CENTER);
+        count.setTextAlignment(TextAlignment.CENTER);
+        count.setStyle(deckBrowserSidebarCountStyle());
+
+        VBox sidebar = new VBox(13,
+                createDeckBrowserAvatar(character),
+                name,
+                deckBrowserSidebarDivider(),
+                archetype,
+                count);
+        sidebar.setAlignment(Pos.TOP_CENTER);
+        sidebar.setMinWidth(DECK_BROWSER_SIDEBAR_WIDTH);
+        sidebar.setPrefWidth(DECK_BROWSER_SIDEBAR_WIDTH);
+        sidebar.setMaxWidth(DECK_BROWSER_SIDEBAR_WIDTH);
+        sidebar.setMaxHeight(Double.MAX_VALUE);
+        sidebar.setPadding(new Insets(18, 14, 18, 14));
+        sidebar.setStyle(deckBrowserSidebarStyle());
+        return sidebar;
+    }
+
+    private StackPane createDeckBrowserAvatar(PlayableCharacter character) {
+        String resourcePath = deckBrowserAvatarResource(character);
+        ImageView imageView = new ImageView();
+        var resource = GameApplication.class.getResource(resourcePath);
+        if (resource != null) {
+            Image image = uiImages.computeIfAbsent(resourcePath, ignored -> new Image(resource.toExternalForm()));
+            imageView.setImage(image);
+            imageView.setViewport(deckBrowserAvatarViewport(character, image));
+        }
+        imageView.setFitWidth(116);
+        imageView.setFitHeight(116);
+        imageView.setPreserveRatio(false);
+        imageView.setSmooth(true);
+        imageView.setCache(true);
+        imageView.setMouseTransparent(true);
+
+        Circle clip = new Circle(58, 58, 54);
+        imageView.setClip(clip);
+
+        StackPane frame = new StackPane(imageView);
+        frame.setPrefSize(122, 122);
+        frame.setMinSize(122, 122);
+        frame.setMaxSize(122, 122);
+        frame.setAlignment(Pos.CENTER);
+        frame.setStyle(deckBrowserAvatarFrameStyle());
+        return frame;
+    }
+
+    private String deckBrowserAvatarResource(PlayableCharacter character) {
+        if (character != null && CharacterPortrait.ASSASSIN_CHARACTER_ID.equals(character.id())) {
+            return BATTLE_ASSASSIN_HEADER_HEALTH_FULL_RESOURCE;
+        }
+        return BATTLE_BERSERKER_AVATAR_RESOURCE;
+    }
+
+    private Rectangle2D deckBrowserAvatarViewport(PlayableCharacter character, Image image) {
+        if (character != null && CharacterPortrait.ASSASSIN_CHARACTER_ID.equals(character.id())) {
+            return clampedViewport(image, 0, 0, 420, image.getHeight());
+        }
+        return clampedViewport(image, 96, 245, 420, 420);
+    }
+
+    private String deckBrowserCharacterName(PlayableCharacter character) {
+        return character == null ? "狂战士" : character.name();
+    }
+
+    private String deckBrowserCharacterArchetype(PlayableCharacter character) {
+        return character == null ? "暗黑远征" : character.archetype();
+    }
+
+    private Region deckBrowserSidebarDivider() {
+        Region divider = new Region();
+        divider.setPrefSize(98, 2);
+        divider.setMaxWidth(98);
+        divider.setStyle("-fx-background-color: linear-gradient(to right, "
+                + "rgba(112, 24, 18, 0.00), rgba(156, 114, 68, 0.82), rgba(112, 24, 18, 0.00));");
+        return divider;
+    }
+
+    private List<DeckCardView> deckCardViews(List<Card> deck) {
+        List<DeckCardView> cards = new ArrayList<>();
+        for (int i = 0; i < deck.size(); i++) {
+            cards.add(new DeckCardView(deck.get(i), i));
+        }
+        return cards;
+    }
+
+    private void refreshDeckBrowserGrid(
+            TilePane cardGrid,
+            List<DeckCardView> cards,
+            DeckSortMode sortMode,
+            boolean ascending
+    ) {
+        cardGrid.getChildren().clear();
+        List<DeckCardView> sortedCards = sortedDeckCards(cards, sortMode, ascending);
+        if (sortedCards.isEmpty()) {
+            Label empty = new Label("当前牌组为空");
+            empty.setStyle("-fx-text-fill: #e8ddc8; -fx-font-size: 20px; -fx-font-weight: bold;"
+                    + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.95), 5, 0.7, 0, 2);");
+            StackPane emptyState = new StackPane(empty);
+            emptyState.setPrefSize(deckBrowserMaxCardGridWidth(), 260);
+            cardGrid.getChildren().add(emptyState);
+            return;
+        }
+
+        for (int i = 0; i < sortedCards.size(); i++) {
+            DeckCardView cardView = sortedCards.get(i);
+            cardGrid.getChildren().add(deckBrowserCard(cardView.card()));
+        }
+    }
+
+    private List<DeckCardView> sortedDeckCards(List<DeckCardView> cards, DeckSortMode sortMode, boolean ascending) {
+        Comparator<DeckCardView> comparator = deckSortComparator(sortMode);
+        if (!ascending) {
+            comparator = comparator.reversed();
+        }
+        return cards.stream()
+                .sorted(comparator)
+                .toList();
+    }
+
+    private Comparator<DeckCardView> deckSortComparator(DeckSortMode sortMode) {
+        return switch (sortMode) {
+            case ACQUIRED -> Comparator.comparingInt(DeckCardView::originalIndex);
+            case TYPE -> Comparator
+                    .comparingInt((DeckCardView cardView) -> cardView.card().getType().ordinal())
+                    .thenComparingInt(cardView -> cardView.card().getCost())
+                    .thenComparing(cardView -> cardView.card().getName())
+                    .thenComparingInt(DeckCardView::originalIndex);
+            case COST -> Comparator
+                    .comparingInt((DeckCardView cardView) -> cardView.card().getCost())
+                    .thenComparingInt(cardView -> cardView.card().getType().ordinal())
+                    .thenComparing(cardView -> cardView.card().getName())
+                    .thenComparingInt(DeckCardView::originalIndex);
+        };
+    }
+
+    private StackPane deckBrowserCard(Card card) {
+        StackPane face = cardFace(card);
+        face.setMouseTransparent(true);
+
+        StackPane cell = new StackPane(face);
+        cell.setAlignment(Pos.CENTER);
+        cell.setPrefSize(HAND_CARD_WIDTH, HAND_CARD_HEIGHT);
+        cell.setMinSize(HAND_CARD_WIDTH, HAND_CARD_HEIGHT);
+        cell.setMaxSize(HAND_CARD_WIDTH, HAND_CARD_HEIGHT);
+        cell.setStyle("-fx-background-color: transparent;");
+        Tooltip.install(cell, new Tooltip(card.getName() + "\n费用：" + card.getCost() + "\n" + card.getDescription()));
+        cell.setOnMouseEntered(event -> {
+            face.setScaleX(1.025);
+            face.setScaleY(1.025);
+            face.setEffect(cardHoverEffect(card.getRarity()));
+            cell.setViewOrder(-1);
+        });
+        cell.setOnMouseExited(event -> {
+            face.setScaleX(1.0);
+            face.setScaleY(1.0);
+            face.setEffect(null);
+            cell.setViewOrder(0);
+        });
+        return cell;
+    }
+
+    private void refreshDeckSortButtons(
+            Map<DeckSortMode, Button> sortButtons,
+            DeckSortMode selectedMode,
+            Map<DeckSortMode, Boolean> sortDirections
+    ) {
+        for (Map.Entry<DeckSortMode, Button> entry : sortButtons.entrySet()) {
+            DeckSortMode mode = entry.getKey();
+            boolean selected = mode == selectedMode;
+            boolean ascending = sortDirections.get(mode);
+            Button button = entry.getValue();
+            button.setText(mode.label + " " + (ascending ? "▲" : "▼"));
+            button.setStyle(deckSortButtonStyle(selected));
+        }
+    }
+
+    private enum DeckSortMode {
+        ACQUIRED("获得顺序"),
+        TYPE("类型"),
+        COST("耗能");
+
+        private final String label;
+
+        DeckSortMode(String label) {
+            this.label = label;
+        }
+    }
+
+    private record DeckCardView(Card card, int originalIndex) {
+    }
+
+    private void showGameMenuOverlay(StackPane overlayLayer) {
+        StackPane close = createSettingsImageButton(
+                SETTINGS_BACK_BUTTON_RESOURCE,
+                SETTINGS_ACTION_BUTTON_WIDTH,
+                () -> closeOverlay(overlayLayer));
+
+        StackPane saveExit = createSettingsImageButton(
+                SETTINGS_SAVE_EXIT_BUTTON_RESOURCE,
+                SETTINGS_ACTION_BUTTON_WIDTH,
+                () -> setRoot(createMainMenu()));
+
+        VBox actions = new VBox(SETTINGS_ACTION_GAP, close, saveExit);
+        actions.setAlignment(Pos.CENTER);
+        actions.setFillWidth(false);
+        actions.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        StackPane.setAlignment(actions, Pos.BOTTOM_RIGHT);
+        StackPane.setMargin(actions, new Insets(0, SETTINGS_ACTION_RIGHT_MARGIN, SETTINGS_ACTION_BOTTOM_MARGIN, 0));
+
+        Region shade = new Region();
+        shade.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        shade.setMouseTransparent(true);
+        shade.setStyle("-fx-background-color: linear-gradient(to bottom, "
+                + "rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.10) 48%, rgba(0, 0, 0, 0.24));"
+                + "-fx-background-radius: 10;");
+
+        StackPane panel = new StackPane(shade, actions);
+        panel.prefWidthProperty().bind(Bindings.createDoubleBinding(
+                () -> settingsPanelWidth(overlayLayer),
+                overlayLayer.widthProperty()));
+        panel.prefHeightProperty().bind(Bindings.createDoubleBinding(
+                () -> settingsPanelHeight(overlayLayer),
+                overlayLayer.heightProperty()));
+        panel.setMinSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        panel.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        panel.setStyle(settingsModalPanelStyle());
+        showOverlay(overlayLayer, panel);
+    }
+
+    private StackPane createSettingsImageButton(String resourcePath, double buttonWidth, Runnable action) {
+        ImageView image = createUiImageView(resourcePath, buttonWidth, 0);
+        double buttonHeight = imageButtonHeight(image, buttonWidth);
+
+        StackPane button = new StackPane(image);
+        button.setAlignment(Pos.CENTER);
+        button.setPrefSize(buttonWidth, buttonHeight);
+        button.setMinSize(buttonWidth, buttonHeight);
+        button.setMaxSize(buttonWidth, buttonHeight);
+        button.setPickOnBounds(true);
+        button.setStyle(settingsImageButtonStyle());
+        button.setOnMouseClicked(event -> {
+            action.run();
+            event.consume();
+        });
+        return button;
+    }
+
+    private double settingsPanelWidth(StackPane overlayLayer) {
+        return SETTINGS_PANEL_BASE_WIDTH * settingsPanelScale(overlayLayer);
+    }
+
+    private double settingsPanelHeight(StackPane overlayLayer) {
+        return SETTINGS_PANEL_BASE_HEIGHT * settingsPanelScale(overlayLayer);
+    }
+
+    private double settingsPanelScale(StackPane overlayLayer) {
+        double availableWidth = overlayLayer.getWidth() - SETTINGS_PANEL_VIEW_MARGIN * 2;
+        double availableHeight = overlayLayer.getHeight() - SETTINGS_PANEL_VIEW_MARGIN * 2;
+        if (stage != null && stage.getScene() != null) {
+            if (availableWidth <= 0) {
+                availableWidth = stage.getScene().getWidth() - SETTINGS_PANEL_VIEW_MARGIN * 2;
+            }
+            if (availableHeight <= 0) {
+                availableHeight = stage.getScene().getHeight() - SETTINGS_PANEL_VIEW_MARGIN * 2;
+            }
+        }
+        double widthScale = availableWidth / SETTINGS_PANEL_BASE_WIDTH;
+        double heightScale = availableHeight / SETTINGS_PANEL_BASE_HEIGHT;
+        return Math.max(0, Math.min(SETTINGS_PANEL_SCALE, Math.min(widthScale, heightScale)));
+    }
+
+    private void showOverlay(StackPane overlayLayer, Node panel) {
         StackPane backdrop = new StackPane(panel);
         backdrop.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
         backdrop.setStyle("-fx-background-color: rgba(0, 0, 0, 0.62);");
         StackPane.setAlignment(panel, Pos.CENTER);
         overlayLayer.getChildren().setAll(backdrop);
         overlayLayer.setPickOnBounds(true);
+        overlayLayer.setMouseTransparent(false);
+        overlayLayer.toFront();
     }
 
-    private void closeMapOverlay(StackPane overlayLayer) {
+    private void closeOverlay(StackPane overlayLayer) {
         overlayLayer.getChildren().clear();
         overlayLayer.setPickOnBounds(false);
+        overlayLayer.setMouseTransparent(true);
     }
 
     private String mapModalPanelStyle() {
@@ -677,6 +1382,182 @@ public class GameApplication extends Application {
                 + "-fx-border-radius: 10;"
                 + "-fx-background-radius: 10;"
                 + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.72), 28, 0.32, 0, 8);";
+    }
+
+    private String settingsModalPanelStyle() {
+        var backgroundResource = GameApplication.class.getResource(SETTINGS_BACKGROUND_RESOURCE);
+        String backgroundImage = backgroundResource == null
+                ? ""
+                : "-fx-background-image: url(\"" + backgroundResource.toExternalForm() + "\");"
+                + "-fx-background-repeat: no-repeat;"
+                + "-fx-background-position: center center;"
+                + "-fx-background-size: cover;";
+        return "-fx-background-color: rgba(27, 24, 20, 0.96);"
+                + backgroundImage
+                + "-fx-border-color: #d6aa65;"
+                + "-fx-border-width: 2;"
+                + "-fx-border-radius: 10;"
+                + "-fx-background-radius: 10;"
+                + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.72), 28, 0.32, 0, 8);";
+    }
+
+    private String deckBrowserTitleBarStyle() {
+        return "-fx-background-color: linear-gradient(to bottom, "
+                + "rgba(19, 16, 14, 0.22), rgba(7, 6, 6, 0.36) 52%, rgba(32, 8, 7, 0.18));"
+                + "-fx-border-color: transparent transparent rgba(125, 98, 62, 0.30) transparent;"
+                + "-fx-border-width: 0 0 1 0;";
+    }
+
+    private String deckBrowserTitleStyle() {
+        return "-fx-text-fill: #e7c27a;"
+                + "-fx-font-family: \"STXingkai\", \"STKaiti\", \"KaiTi\", \"FangSong\", \"Serif\";"
+                + "-fx-font-size: 34px;"
+                + "-fx-font-weight: bold;"
+                + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.96), 5, 0.78, 0, 2);";
+    }
+
+    private String deckBrowserBoardStyle() {
+        return "-fx-background-color: linear-gradient(to bottom, "
+                + "rgba(17, 16, 15, 0.86), rgba(7, 7, 8, 0.88) 54%, rgba(19, 5, 5, 0.84));"
+                + "-fx-background-radius: 8;"
+                + "-fx-border-color: rgba(168, 132, 78, 0.66) rgba(47, 42, 38, 0.95) rgba(95, 22, 18, 0.74) rgba(47, 42, 38, 0.95);"
+                + "-fx-border-width: 2;"
+                + "-fx-border-radius: 8;"
+                + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.92), 28, 0.34, 0, 10);";
+    }
+
+    private String deckBrowserBoardInnerStyle() {
+        return "-fx-background-color: linear-gradient(to bottom, "
+                + "rgba(0, 0, 0, 0.36), rgba(21, 18, 18, 0.22) 46%, rgba(74, 12, 10, 0.18));"
+                + "-fx-background-radius: 6;";
+    }
+
+    private String deckBrowserGridHolderStyle() {
+        return "-fx-background-color: radial-gradient(center 50% 18%, radius 72%, "
+                + "rgba(96, 27, 19, 0.20), rgba(9, 8, 8, 0.26) 55%, rgba(0, 0, 0, 0.40) 100%);"
+                + "-fx-background-radius: 4;";
+    }
+
+    private String deckBrowserSortBarStyle() {
+        return "-fx-background-color: linear-gradient(to bottom, "
+                + "rgba(26, 24, 23, 0.98), rgba(8, 7, 7, 0.98) 54%, rgba(25, 8, 7, 0.98));"
+                + "-fx-background-radius: 4;"
+                + "-fx-border-color: rgba(163, 127, 75, 0.76) rgba(44, 39, 35, 0.96) rgba(77, 17, 14, 0.95) rgba(128, 95, 58, 0.72);"
+                + "-fx-border-width: 2;"
+                + "-fx-border-radius: 4;"
+                + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.92), 16, 0.44, 0, 4);";
+    }
+
+    private String deckSortButtonStyle(boolean selected) {
+        return deckSortButtonStyle(selected, false);
+    }
+
+    private String deckSortButtonStyle(boolean selected, boolean hovered) {
+        String text = selected ? "#f3cf7d" : hovered ? "#f4e6c6" : "#d4c5a8";
+        String background = selected
+                ? "linear-gradient(to bottom, rgba(104, 25, 20, 0.44), rgba(26, 10, 9, 0.26))"
+                : hovered
+                ? "linear-gradient(to bottom, rgba(92, 19, 16, 0.24), rgba(10, 8, 8, 0.18))"
+                : "transparent";
+        String border = selected
+                ? "rgba(224, 171, 95, 0.58)"
+                : hovered ? "rgba(151, 43, 35, 0.46)" : "rgba(84, 72, 58, 0.18)";
+        return "-fx-background-color: " + background + ";"
+                + "-fx-border-color: " + border + ";"
+                + "-fx-border-width: 0 1 0 1;"
+                + "-fx-text-fill: " + text + ";"
+                + "-fx-font-family: \"KaiTi\", \"STKaiti\", \"Serif\";"
+                + "-fx-font-size: 22px;"
+                + "-fx-font-weight: bold;"
+                + "-fx-padding: 0 18 0 18;"
+                + "-fx-cursor: hand;"
+                + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.96), 3, 0.85, 1, 1);";
+    }
+
+    private String deckBrowserScrollStyle() {
+        return "-fx-background: transparent;"
+                + "-fx-background-color: transparent;"
+                + "-fx-control-inner-background: transparent;"
+                + "-fx-padding: 0;";
+    }
+
+    private String deckBrowserHintStyle() {
+        return "-fx-text-fill: #d8c59a;"
+                + "-fx-font-size: 18px;"
+                + "-fx-font-weight: bold;"
+                + "-fx-padding: 6 28 6 28;"
+                + "-fx-background-color: linear-gradient(to bottom, rgba(23, 21, 19, 0.82), rgba(6, 5, 5, 0.78));"
+                + "-fx-background-radius: 4;"
+                + "-fx-border-color: rgba(149, 112, 64, 0.54) rgba(44, 37, 31, 0.72) rgba(83, 18, 14, 0.64) rgba(44, 37, 31, 0.72);"
+                + "-fx-border-width: 1;"
+                + "-fx-border-radius: 4;"
+                + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.96), 9, 0.64, 0, 2);";
+    }
+
+    private String deckBrowserCloseButtonStyle() {
+        return deckBrowserCloseButtonStyle(false);
+    }
+
+    private String deckBrowserCloseButtonStyle(boolean hovered) {
+        String top = hovered ? "rgba(164, 48, 38, 0.98)" : "rgba(130, 32, 28, 0.98)";
+        String bottom = hovered ? "rgba(94, 20, 18, 0.98)" : "rgba(54, 12, 12, 0.98)";
+        String glow = hovered ? "rgba(192, 51, 38, 0.58)" : "rgba(0, 0, 0, 0.86)";
+        return "-fx-background-color: linear-gradient(to bottom, " + top + ", " + bottom + ");"
+                + "-fx-text-fill: #f1d39b;"
+                + "-fx-font-size: 17px;"
+                + "-fx-font-weight: bold;"
+                + "-fx-border-color: rgba(221, 157, 84, 0.78) rgba(50, 14, 13, 0.96) rgba(27, 7, 7, 0.98) rgba(154, 86, 52, 0.72);"
+                + "-fx-border-width: 2;"
+                + "-fx-border-radius: 8;"
+                + "-fx-background-radius: 8;"
+                + "-fx-padding: 8 24 8 24;"
+                + "-fx-cursor: hand;"
+                + "-fx-effect: dropshadow(gaussian, " + glow + ", 12, 0.42, 0, 3);";
+    }
+
+    private String deckBrowserSidebarStyle() {
+        return "-fx-background-color: linear-gradient(to bottom, "
+                + "rgba(28, 18, 17, 0.88), rgba(8, 7, 7, 0.90) 46%, rgba(44, 8, 8, 0.76));"
+                + "-fx-background-radius: 10;"
+                + "-fx-border-color: rgba(128, 92, 55, 0.62) rgba(38, 34, 31, 0.92) rgba(90, 18, 16, 0.74) rgba(78, 58, 39, 0.64);"
+                + "-fx-border-width: 2;"
+                + "-fx-border-radius: 10;"
+                + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.90), 24, 0.36, 0, 8);";
+    }
+
+    private String deckBrowserAvatarFrameStyle() {
+        return "-fx-background-color: radial-gradient(center 50% 42%, radius 70%, "
+                + "rgba(106, 20, 18, 0.50), rgba(12, 10, 10, 0.98));"
+                + "-fx-background-radius: 64;"
+                + "-fx-border-color: rgba(207, 158, 88, 0.68) rgba(35, 33, 31, 0.96) rgba(78, 16, 15, 0.90) rgba(143, 98, 58, 0.72);"
+                + "-fx-border-width: 3;"
+                + "-fx-border-radius: 64;"
+                + "-fx-effect: dropshadow(gaussian, rgba(130, 17, 13, 0.34), 15, 0.32, 0, 2);";
+    }
+
+    private String deckBrowserSidebarNameStyle() {
+        return "-fx-text-fill: #d9b875;"
+                + "-fx-font-family: \"STKaiti\", \"KaiTi\", \"Serif\";"
+                + "-fx-font-size: 24px;"
+                + "-fx-font-weight: bold;"
+                + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.96), 4, 0.76, 0, 2);";
+    }
+
+    private String deckBrowserSidebarTextStyle() {
+        return "-fx-text-fill: #bcb1a1;"
+                + "-fx-font-size: 13px;"
+                + "-fx-font-weight: bold;"
+                + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.86), 2, 0.6, 0, 1);";
+    }
+
+    private String deckBrowserSidebarCountStyle() {
+        return "-fx-text-fill: #d8c59a;"
+                + "-fx-font-size: 13px;"
+                + "-fx-padding: 5 12 5 12;"
+                + "-fx-background-color: rgba(0, 0, 0, 0.34);"
+                + "-fx-background-radius: 14;"
+                + "-fx-border-color: rgba(117, 78, 45, 0.54);"
+                + "-fx-border-radius: 14;";
     }
 
     private String mapHeaderButtonStyle() {
@@ -722,6 +1603,10 @@ public class GameApplication extends Application {
         return Math.max(min, Math.min(max, value));
     }
 
+    private int clampInt(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
     private StackPane createBattleView() {
         updateBattleBackgroundSelection();
         StackPane root = new StackPane();
@@ -731,14 +1616,23 @@ public class GameApplication extends Application {
         StackPane overlayLayer = new StackPane();
         overlayLayer.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
         overlayLayer.setPickOnBounds(false);
+        overlayLayer.setMouseTransparent(true);
 
         BorderPane battleLayer = new BorderPane();
         battleLayer.setPadding(new Insets(14, 24, 12, 24));
-        battleLayer.setTop(createBattleHeader(overlayLayer));
+        battleLayer.setTop(createBattleHeader());
         battleLayer.setCenter(createBattleCenter());
         battleLayer.setBottom(createHandArea());
 
-        root.getChildren().addAll(backgroundLayer, battleLayer, overlayLayer);
+        StackPane battleInfoPanel = createBattleInfoPanel(root);
+        StackPane.setAlignment(battleInfoPanel, Pos.TOP_CENTER);
+        StackPane.setMargin(battleInfoPanel, new Insets(0, 0, 0, 0));
+
+        HBox topRightButtons = createBattleTopRightButtons(overlayLayer);
+        StackPane.setAlignment(topRightButtons, Pos.TOP_RIGHT);
+        StackPane.setMargin(topRightButtons, new Insets(14, 24, 0, 0));
+
+        root.getChildren().addAll(backgroundLayer, battleLayer, battleInfoPanel, topRightButtons, overlayLayer);
         refreshBattle();
         return root;
     }
@@ -753,157 +1647,88 @@ public class GameApplication extends Application {
         }
     }
 
-    private HBox createBattleHeader(StackPane overlayLayer) {
+    private HBox createBattleHeader() {
         RunState run = engine.getRunState();
-        String nodeName = run != null && run.getCurrentNode() != null ? run.getCurrentNode().getName() : "单场战斗";
-
-        Label title = new Label(nodeName);
-        title.setStyle("-fx-text-fill: #f2e8cf; -fx-font-size: 20px; -fx-font-weight: bold;"
-                + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.88), 4, 0.6, 0, 1);");
-
-        statusLabel = new Label();
-        statusLabel.setStyle("-fx-text-fill: #d7d0c0; -fx-font-size: 13px; -fx-font-weight: bold;");
-
-        VBox battleStatus = new VBox(1, title, statusLabel);
-        battleStatus.setAlignment(Pos.CENTER);
-        battleStatus.setPadding(new Insets(7, 18, 7, 18));
-        battleStatus.setMinWidth(250);
-        battleStatus.setStyle("-fx-background-color: linear-gradient(to right, rgba(13, 10, 10, 0.16), rgba(16, 13, 13, 0.78) 22%, rgba(16, 13, 13, 0.78) 78%, rgba(13, 10, 10, 0.16));"
-                + "-fx-border-color: rgba(98, 76, 58, 0.18) rgba(179, 142, 90, 0.48) rgba(77, 45, 37, 0.42) rgba(179, 142, 90, 0.48);"
-                + "-fx-border-width: 0 1 1 1;");
-
         HBox goldCounter = createResourceCounter(BATTLE_GOLD_RESOURCE, String.valueOf(run == null ? 0 : run.getGold()), "金币");
 
         HBox leftStatus = new HBox(10, createPlayerHeaderPanel(), goldCounter);
         leftStatus.setAlignment(Pos.TOP_LEFT);
 
-        Button deckButton = createBattleIconButton(BATTLE_DECK_BUTTON_RESOURCE, "牌组");
-        deckButton.setOnAction(event -> showBattleDeckOverlay(overlayLayer));
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        Button settingsButton = createBattleIconButton(BATTLE_SETTINGS_RESOURCE, "设置");
-        settingsButton.setOnAction(event -> showBattleSettingsOverlay(overlayLayer));
+        Region actionReserve = new Region();
+        actionReserve.setMinSize(battleTopRightButtonsWidth(), BATTLE_ACTION_BUTTON_SIZE);
+        actionReserve.setPrefSize(battleTopRightButtonsWidth(), BATTLE_ACTION_BUTTON_SIZE);
+        actionReserve.setMaxSize(battleTopRightButtonsWidth(), BATTLE_ACTION_BUTTON_SIZE);
+        actionReserve.setMouseTransparent(true);
 
-        Region leftSpacer = new Region();
-        Region rightSpacer = new Region();
-        HBox.setHgrow(leftSpacer, Priority.ALWAYS);
-        HBox.setHgrow(rightSpacer, Priority.ALWAYS);
-
-        HBox actions = new HBox(BATTLE_ACTION_BUTTON_GAP, deckButton, settingsButton);
-        actions.setAlignment(Pos.CENTER_RIGHT);
-
-        HBox header = new HBox(14, leftStatus, leftSpacer, battleStatus, rightSpacer, actions);
+        HBox header = new HBox(14, leftStatus, spacer, actionReserve);
         header.setAlignment(Pos.TOP_CENTER);
         header.setPadding(new Insets(0, 0, 6, 0));
         return header;
     }
 
-    private void showBattleDeckOverlay(StackPane overlayLayer) {
-        List<Card> deck = currentDeck();
-        DeckSummary summary = DeckSummary.from(deck);
+    private StackPane createBattleInfoPanel(StackPane root) {
+        StackPane panel = new StackPane();
+        panel.setPickOnBounds(false);
+        panel.setMouseTransparent(true);
+        panel.prefWidthProperty().bind(Bindings.createDoubleBinding(
+                () -> clamp(root.getWidth() * 0.22, 230, 390),
+                root.widthProperty()));
+        panel.prefHeightProperty().bind(Bindings.createDoubleBinding(
+                () -> panel.getPrefWidth() / BATTLE_INFO_PANEL_ASPECT,
+                panel.prefWidthProperty()));
+        panel.setMinSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        panel.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
 
-        Label title = new Label("当前牌组");
-        title.setStyle("-fx-text-fill: #f6dfad; -fx-font-size: 28px; -fx-font-weight: bold;"
-                + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.9), 5, 0.6, 0, 2);");
+        ImageView frame = createUiImageView(BATTLE_INFO_PANEL_RESOURCE, 430, 174);
+        frame.fitWidthProperty().bind(panel.widthProperty());
+        frame.fitHeightProperty().bind(panel.heightProperty());
 
-        HBox stats = new HBox(12,
-                statBox("总张数", summary.getTotalCards() + " 张"),
-                statBox("平均费用", String.format(Locale.ROOT, "%.2f", summary.getAverageCost())),
-                statBox("攻击", summary.getAttackCount() + " 张"),
-                statBox("技能", summary.getSkillCount() + " 张"),
-                statBox("战术", summary.getTacticCount() + " 张")
-        );
-        stats.setAlignment(Pos.CENTER_LEFT);
+        statusLabel = new Label();
+        statusLabel.setAlignment(Pos.CENTER);
+        statusLabel.setTextAlignment(TextAlignment.CENTER);
+        statusLabel.setWrapText(false);
+        statusLabel.setStyle(battleInfoTitleStyle());
+        statusLabel.prefWidthProperty().bind(panel.widthProperty().multiply(0.46));
+        statusLabel.maxWidthProperty().bind(panel.widthProperty().multiply(0.50));
+        statusLabel.prefHeightProperty().bind(panel.heightProperty().multiply(0.22));
+        statusLabel.maxHeightProperty().bind(panel.heightProperty().multiply(0.24));
+        statusLabel.translateYProperty().bind(panel.heightProperty().multiply(-0.06));
 
-        ScrollPane cards = createBattleDeckCardGrid(deck);
-        VBox.setVgrow(cards, Priority.ALWAYS);
-
-        Button close = new Button("关闭");
-        close.setStyle(primaryButtonStyle());
-        close.setOnAction(event -> closeBattleOverlay(overlayLayer));
-
-        VBox panel = new VBox(16, title, stats, cards, close);
-        panel.setAlignment(Pos.CENTER);
-        panel.setMaxSize(980, 680);
-        panel.setPadding(new Insets(24));
-        panel.setStyle(battleModalPanelStyle());
-        showBattleOverlay(overlayLayer, panel);
+        panel.getChildren().addAll(frame, statusLabel);
+        return panel;
     }
 
-    private ScrollPane createBattleDeckCardGrid(List<Card> deck) {
-        TilePane cardGrid = new TilePane();
-        cardGrid.setHgap(12);
-        cardGrid.setVgap(14);
-        cardGrid.setPrefColumns(5);
-        cardGrid.setPadding(new Insets(8));
+    private HBox createBattleTopRightButtons(StackPane overlayLayer) {
+        StackPane deckButton = createBattleIconButton(BATTLE_DECK_BUTTON_RESOURCE,
+                "牌组",
+                () -> showBattleDeckOverlay(overlayLayer));
+        StackPane settingsButton = createBattleIconButton(BATTLE_SETTINGS_RESOURCE,
+                "设置",
+                () -> showBattleSettingsOverlay(overlayLayer));
 
-        if (deck.isEmpty()) {
-            Label empty = new Label("当前没有可查看的卡牌。");
-            empty.setStyle("-fx-text-fill: #ddd6c3; -fx-font-size: 15px; -fx-font-weight: bold;");
-            cardGrid.getChildren().add(empty);
-        } else {
-            for (Card card : deck) {
-                StackPane face = cardFace(card);
-                face.setMouseTransparent(true);
-                StackPane slot = new StackPane(face);
-                slot.setPrefSize(HAND_CARD_WIDTH, HAND_CARD_HEIGHT);
-                slot.setMinSize(HAND_CARD_WIDTH, HAND_CARD_HEIGHT);
-                slot.setMaxSize(HAND_CARD_WIDTH, HAND_CARD_HEIGHT);
-                cardGrid.getChildren().add(slot);
-            }
-        }
+        HBox buttons = new HBox(BATTLE_ACTION_BUTTON_GAP, deckButton, settingsButton);
+        buttons.setAlignment(Pos.TOP_RIGHT);
+        buttons.setMinSize(battleTopRightButtonsWidth(), BATTLE_ACTION_BUTTON_SIZE);
+        buttons.setPrefSize(battleTopRightButtonsWidth(), BATTLE_ACTION_BUTTON_SIZE);
+        buttons.setMaxSize(battleTopRightButtonsWidth(), BATTLE_ACTION_BUTTON_SIZE);
+        buttons.setPickOnBounds(false);
+        settingsButton.toFront();
+        return buttons;
+    }
 
-        ScrollPane scroll = new ScrollPane(cardGrid);
-        scroll.setFitToWidth(true);
-        scroll.setPrefViewportHeight(420);
-        scroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;"
-                + "-fx-padding: 0;");
-        return scroll;
+    private double battleTopRightButtonsWidth() {
+        return BATTLE_ACTION_BUTTON_SIZE * 2 + BATTLE_ACTION_BUTTON_GAP;
+    }
+
+    private void showBattleDeckOverlay(StackPane overlayLayer) {
+        showDeckOverlay(overlayLayer, currentDeck());
     }
 
     private void showBattleSettingsOverlay(StackPane overlayLayer) {
-        Label title = new Label("游戏菜单");
-        title.setStyle("-fx-text-fill: #f6dfad; -fx-font-size: 28px; -fx-font-weight: bold;"
-                + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.9), 5, 0.6, 0, 2);");
-
-        Button continueButton = new Button("继续游戏");
-        continueButton.setMaxWidth(Double.MAX_VALUE);
-        continueButton.setStyle(primaryButtonStyle() + "-fx-font-size: 16px; -fx-padding: 10 28 10 28;");
-        continueButton.setOnAction(event -> closeBattleOverlay(overlayLayer));
-
-        Button mainMenuButton = new Button("返回主菜单");
-        mainMenuButton.setMaxWidth(Double.MAX_VALUE);
-        mainMenuButton.setStyle(secondaryButtonStyle() + "-fx-font-size: 15px; -fx-padding: 10 28 10 28;");
-        mainMenuButton.setOnAction(event -> setRoot(createMainMenu()));
-
-        Button exitButton = new Button("退出游戏");
-        exitButton.setMaxWidth(Double.MAX_VALUE);
-        exitButton.setStyle(secondaryButtonStyle() + "-fx-font-size: 15px; -fx-padding: 10 28 10 28;");
-        exitButton.setOnAction(event -> stage.close());
-
-        VBox actions = new VBox(12, continueButton, mainMenuButton, exitButton);
-        actions.setAlignment(Pos.CENTER);
-        actions.setPrefWidth(240);
-
-        VBox panel = new VBox(20, title, actions);
-        panel.setAlignment(Pos.CENTER);
-        panel.setMaxSize(380, 320);
-        panel.setPadding(new Insets(28));
-        panel.setStyle(battleModalPanelStyle());
-        showBattleOverlay(overlayLayer, panel);
-    }
-
-    private void showBattleOverlay(StackPane overlayLayer, Node panel) {
-        StackPane backdrop = new StackPane(panel);
-        backdrop.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-        backdrop.setStyle("-fx-background-color: rgba(0, 0, 0, 0.58);");
-        StackPane.setAlignment(panel, Pos.CENTER);
-        overlayLayer.getChildren().setAll(backdrop);
-        overlayLayer.setPickOnBounds(true);
-    }
-
-    private void closeBattleOverlay(StackPane overlayLayer) {
-        overlayLayer.getChildren().clear();
-        overlayLayer.setPickOnBounds(false);
+        showGameMenuOverlay(overlayLayer);
     }
 
     private BorderPane createBattleLogView() {
@@ -1446,26 +2271,23 @@ public class GameApplication extends Application {
     private StackPane createBattleArea() {
         enemyLabel = new Label();
         intentLabel = new Label();
-        enemyBlockLabel = new Label();
-        enemyHealthBar = healthBar();
-        VBox enemyHud = combatantHud("敌人", enemyLabel, enemyHealthBar, enemyBlockLabel, intentLabel);
+        styleCombatantNameLabel(enemyLabel);
+        styleCombatantIntentLabel(intentLabel);
+        enemyVitalsBar = new BattleVitalsBar();
         CharacterPortrait enemyPortrait = isBossBattle() ? CharacterPortrait.boss() : CharacterPortrait.enemy();
         enemyEffectLayer = createEffectLayer();
-        enemyEffectTarget = createEffectTarget(enemyPortrait, enemyEffectLayer);
-        VBox enemyUnit = new VBox(5, enemyHud, enemyEffectTarget);
-        enemyUnit.setAlignment(Pos.CENTER);
-        enemyUnit.setTranslateY(8);
+        StackPane enemyUnit = createCombatantUnit(enemyPortrait, enemyEffectLayer, enemyVitalsBar, enemyLabel, intentLabel);
+        enemyUnit.setTranslateY(COMBATANT_UNIT_BASELINE_OFFSET_Y);
 
         playerLabel = new Label();
-        playerBlockLabel = new Label();
-        playerHealthBar = healthBar();
-        VBox playerHud = combatantHud("玩家", playerLabel, playerHealthBar, playerBlockLabel);
-        CharacterPortrait playerPortrait = CharacterPortrait.player();
+        styleCombatantNameLabel(playerLabel);
+        playerVitalsBar = new BattleVitalsBar();
+        RunState run = engine.getRunState();
+        String playerCharacterId = run == null ? CharacterPortrait.BERSERKER_CHARACTER_ID : run.getPlayableCharacter().id();
+        CharacterPortrait playerPortrait = CharacterPortrait.player(playerCharacterId);
         playerEffectLayer = createEffectLayer();
-        playerEffectTarget = createEffectTarget(playerPortrait, playerEffectLayer);
-        VBox playerUnit = new VBox(4, playerHud, playerEffectTarget);
-        playerUnit.setAlignment(Pos.CENTER);
-        playerUnit.setTranslateY(52);
+        StackPane playerUnit = createCombatantUnit(playerPortrait, playerEffectLayer, playerVitalsBar, playerLabel, null);
+        playerUnit.setTranslateY(COMBATANT_UNIT_BASELINE_OFFSET_Y);
 
         HBox units = new HBox(210, playerUnit, enemyUnit);
         units.setAlignment(Pos.BOTTOM_CENTER);
@@ -1476,6 +2298,68 @@ public class GameApplication extends Application {
         battlefield.setPadding(new Insets(0, 0, 4, 0));
         StackPane.setAlignment(units, Pos.BOTTOM_CENTER);
         return battlefield;
+    }
+
+    private StackPane createCombatantUnit(CharacterPortrait portrait,
+                                         StackPane effectLayer,
+                                         BattleVitalsBar vitalsBar,
+                                         Label nameLabel,
+                                         Label intentLabel) {
+        StackPane effectTarget = createEffectTarget(portrait, effectLayer);
+        if (vitalsBar == playerVitalsBar) {
+            playerEffectTarget = effectTarget;
+        } else if (vitalsBar == enemyVitalsBar) {
+            enemyEffectTarget = effectTarget;
+        }
+
+        StackPane unit = new StackPane(effectTarget, vitalsBar);
+        unit.setPrefSize(COMBATANT_UNIT_WIDTH, COMBATANT_UNIT_HEIGHT);
+        unit.setMinSize(COMBATANT_UNIT_WIDTH, COMBATANT_UNIT_HEIGHT);
+        unit.setMaxSize(COMBATANT_UNIT_WIDTH, COMBATANT_UNIT_HEIGHT);
+        unit.setPickOnBounds(false);
+
+        StackPane.setAlignment(effectTarget, Pos.TOP_CENTER);
+        StackPane.setAlignment(vitalsBar, Pos.TOP_CENTER);
+        StackPane.setMargin(vitalsBar, new Insets(COMBATANT_VITALS_TOP, 0, 0, 0));
+
+        VBox captions = new VBox(0, nameLabel);
+        if (intentLabel != null) {
+            captions.getChildren().add(intentLabel);
+        }
+        captions.setAlignment(Pos.TOP_CENTER);
+        captions.setMouseTransparent(true);
+        captions.setPrefWidth(COMBATANT_UNIT_WIDTH);
+        captions.setMinWidth(COMBATANT_UNIT_WIDTH);
+        captions.setMaxWidth(COMBATANT_UNIT_WIDTH);
+        unit.getChildren().add(captions);
+        StackPane.setAlignment(captions, Pos.TOP_CENTER);
+        StackPane.setMargin(captions, new Insets(COMBATANT_CAPTION_TOP, 0, 0, 0));
+        return unit;
+    }
+
+    private void styleCombatantNameLabel(Label label) {
+        label.setAlignment(Pos.CENTER);
+        label.setTextAlignment(TextAlignment.CENTER);
+        label.setMinSize(230, 25);
+        label.setPrefSize(270, 25);
+        label.setMaxSize(300, 25);
+        label.setStyle("-fx-text-fill: #f7f0df;"
+                + "-fx-font-size: 20px;"
+                + "-fx-font-weight: bold;"
+                + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.96), 4, 0.72, 0, 1);");
+    }
+
+    private void styleCombatantIntentLabel(Label label) {
+        label.setAlignment(Pos.CENTER);
+        label.setTextAlignment(TextAlignment.CENTER);
+        label.setWrapText(true);
+        label.setMinSize(260, 20);
+        label.setPrefWidth(290);
+        label.setMaxWidth(300);
+        label.setStyle("-fx-text-fill: #f0c172;"
+                + "-fx-font-size: 14px;"
+                + "-fx-font-weight: bold;"
+                + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.92), 4, 0.64, 0, 1);");
     }
 
     private boolean isBossBattle() {
@@ -1516,23 +2400,21 @@ public class GameApplication extends Application {
     }
 
     private HBox createHandArea() {
-        handBox = new HBox(HAND_CARD_SPACING);
-        handBox.setAlignment(Pos.BOTTOM_CENTER);
-        handBox.setFillHeight(false);
-        handBox.setPadding(new Insets(0, 24, 0, 24));
-        handBox.setMinHeight(HAND_CARD_SLOT_HEIGHT);
-        handBox.setPrefHeight(HAND_CARD_SLOT_HEIGHT);
+        handPane = new Pane();
+        handPane.setMinHeight(HAND_CARD_SLOT_HEIGHT);
+        handPane.setPrefHeight(HAND_CARD_SLOT_HEIGHT);
+        handPane.setMaxHeight(HAND_CARD_SLOT_HEIGHT);
+        handPane.setPickOnBounds(false);
+        handPane.widthProperty().addListener((observable, oldValue, newValue) -> {
+            if (Math.abs(newValue.doubleValue() - oldValue.doubleValue()) > 1) {
+                BattleState state = engine.getState();
+                if (state != null) {
+                    refreshHand(state);
+                }
+            }
+        });
 
-        ScrollPane handScroll = new ScrollPane(handBox);
-        handScroll.setFitToHeight(true);
-        handScroll.setFitToWidth(true);
-        handScroll.setPannable(true);
-        handScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        handScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        handScroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;"
-                + "-fx-padding: 0;");
-
-        StackPane handWell = new StackPane(handScroll);
+        StackPane handWell = new StackPane(handPane);
         handWell.setMinHeight(HAND_CARD_SLOT_HEIGHT);
         handWell.setPrefHeight(HAND_CARD_SLOT_HEIGHT);
         handWell.setMaxHeight(HAND_CARD_SLOT_HEIGHT + 12);
@@ -1596,6 +2478,7 @@ public class GameApplication extends Application {
         HBox handArea = new HBox(12, energyPanel, handWell, actionPanel);
         handArea.setAlignment(Pos.BOTTOM_CENTER);
         handArea.setPadding(new Insets(0, 0, 0, 0));
+        handArea.setTranslateY(BATTLE_BOTTOM_UI_OFFSET_Y);
         handArea.setStyle("-fx-background-color: transparent;");
         HBox.setHgrow(handWell, Priority.ALWAYS);
         return handArea;
@@ -1671,32 +2554,80 @@ public class GameApplication extends Application {
         return root;
     }
 
-    private VBox combatantHud(String titleText, Label nameLabel, ProgressBar healthBar, Label blockLabel, Label... extraLabels) {
-        Label title = new Label(titleText);
-        title.setStyle("-fx-text-fill: #caa775; -fx-font-size: 13px; -fx-font-weight: bold;");
+    private ImageView createVitalsImage(String resourcePath) {
+        ImageView view = createUiImageView(resourcePath, COMBATANT_VITALS_WIDTH, COMBATANT_VITALS_HEIGHT);
+        view.setPreserveRatio(false);
+        return view;
+    }
 
-        nameLabel.setStyle("-fx-text-fill: #f7f0df; -fx-font-size: 15px; -fx-font-weight: bold;"
-                + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.86), 3, 0.55, 0, 1);");
-        blockLabel.setStyle("-fx-text-fill: #d6e9ff; -fx-font-size: 13px; -fx-font-weight: bold;");
+    private final class BattleVitalsBar extends StackPane {
+        private final ImageView healthFill;
+        private final ImageView shieldFill;
+        private final Rectangle healthClip = new Rectangle(0, COMBATANT_VITALS_HEIGHT);
+        private final Rectangle shieldClip = new Rectangle(0, COMBATANT_VITALS_HEIGHT);
+        private final Label healthText = new Label();
+        private final Label blockText = new Label();
 
-        VBox box = new VBox(5, title, nameLabel, healthBar, blockLabel);
-        for (Label label : extraLabels) {
-            label.setStyle("-fx-text-fill: #f0c172; -fx-font-size: 13px; -fx-font-weight: bold;"
-                    + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.86), 3, 0.5, 0, 1);");
-            label.setWrapText(true);
-            box.getChildren().add(label);
+        private BattleVitalsBar() {
+            ImageView emptySlot = createVitalsImage(BATTLE_EMPTY_HEALTH_RESOURCE);
+            healthFill = createVitalsImage(BATTLE_FULL_HEALTH_RESOURCE);
+            shieldFill = createVitalsImage(BATTLE_FULL_SHIELD_RESOURCE);
+            healthFill.setClip(healthClip);
+            shieldFill.setClip(shieldClip);
+
+            healthText.setAlignment(Pos.CENTER);
+            healthText.setTextAlignment(TextAlignment.CENTER);
+            healthText.setPrefSize(COMBATANT_VITALS_WIDTH, 28);
+            healthText.setMinSize(COMBATANT_VITALS_WIDTH, 28);
+            healthText.setMaxSize(COMBATANT_VITALS_WIDTH, 28);
+
+            blockText.setAlignment(Pos.CENTER);
+            blockText.setTextAlignment(TextAlignment.CENTER);
+            blockText.setPrefSize(COMBATANT_SHIELD_VALUE_WIDTH, COMBATANT_SHIELD_VALUE_HEIGHT);
+            blockText.setMinSize(COMBATANT_SHIELD_VALUE_WIDTH, COMBATANT_SHIELD_VALUE_HEIGHT);
+            blockText.setMaxSize(COMBATANT_SHIELD_VALUE_WIDTH, COMBATANT_SHIELD_VALUE_HEIGHT);
+            blockText.setStyle("-fx-text-fill: #ffffff;"
+                    + "-fx-font-size: 18px;"
+                    + "-fx-font-weight: bold;"
+                    + "-fx-effect: dropshadow(gaussian, rgba(0, 20, 56, 0.96), 5, 0.78, 0, 1);");
+
+            setPrefSize(COMBATANT_VITALS_WIDTH, COMBATANT_VITALS_HEIGHT);
+            setMinSize(COMBATANT_VITALS_WIDTH, COMBATANT_VITALS_HEIGHT);
+            setMaxSize(COMBATANT_VITALS_WIDTH, COMBATANT_VITALS_HEIGHT);
+            setMouseTransparent(true);
+            setStyle("-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.78), 9, 0.42, 0, 2);");
+            getChildren().addAll(emptySlot, healthFill, shieldFill, healthText, blockText);
+
+            StackPane.setAlignment(healthText, Pos.CENTER);
+            StackPane.setMargin(healthText, new Insets(0, 0, 4, 0));
+            StackPane.setAlignment(blockText, Pos.TOP_LEFT);
+            StackPane.setMargin(blockText, new Insets(COMBATANT_SHIELD_VALUE_TOP,
+                    0,
+                    0,
+                    COMBATANT_SHIELD_VALUE_LEFT));
+            update(1, 1, 0);
         }
-        box.setAlignment(Pos.CENTER);
-        box.setMinWidth(268);
-        box.setMaxWidth(286);
-        box.setPadding(new Insets(9, 15, 10, 15));
-        box.setStyle("-fx-background-color: linear-gradient(to bottom, rgba(18, 14, 13, 0.90), rgba(7, 6, 7, 0.86));"
-                + "-fx-border-color: rgba(205, 169, 108, 0.42) rgba(67, 43, 36, 0.70) rgba(35, 21, 20, 0.82) rgba(205, 169, 108, 0.32);"
-                + "-fx-border-width: 1.4;"
-                + "-fx-border-radius: 4;"
-                + "-fx-background-radius: 4;"
-                + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.70), 12, 0.32, 0, 4);");
-        return box;
+
+        private void update(int health, int maxHealth, int block) {
+            int safeMaxHealth = Math.max(1, maxHealth);
+            int safeHealth = clampInt(health, 0, safeMaxHealth);
+            double ratio = clamp((double) safeHealth / safeMaxHealth, 0, 1);
+            double fillWidth = COMBATANT_VITALS_WIDTH * ratio;
+            boolean hasBlock = block > 0 && safeHealth > 0;
+
+            healthClip.setWidth(fillWidth);
+            shieldClip.setWidth(fillWidth);
+            healthFill.setVisible(!hasBlock && fillWidth > 0.5);
+            shieldFill.setVisible(hasBlock && fillWidth > 0.5);
+
+            healthText.setText(safeHealth + "/" + safeMaxHealth);
+            healthText.setStyle("-fx-text-fill: " + (hasBlock ? "#ecfbff" : "#fff0df") + ";"
+                    + "-fx-font-size: 18px;"
+                    + "-fx-font-weight: bold;"
+                    + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.96), 4, 0.78, 0, 1);");
+            blockText.setText(hasBlock ? String.valueOf(block) : "");
+            blockText.setVisible(hasBlock);
+        }
     }
 
     private StackPane createBattleBackgroundLayer() {
@@ -1749,6 +2680,22 @@ public class GameApplication extends Application {
         return view;
     }
 
+    private ImageView createRawUiImageView(String resourcePath, double fitWidth, double fitHeight) {
+        ImageView view = new ImageView();
+        var resource = GameApplication.class.getResource(resourcePath);
+        if (resource != null) {
+            Image image = uiImages.computeIfAbsent(resourcePath, ignored -> new Image(resource.toExternalForm()));
+            view.setImage(image);
+        }
+        view.setFitWidth(fitWidth);
+        view.setFitHeight(fitHeight);
+        view.setPreserveRatio(false);
+        view.setSmooth(true);
+        view.setCache(true);
+        view.setMouseTransparent(true);
+        return view;
+    }
+
     private Rectangle2D uiViewport(String resourcePath, Image image) {
         Rectangle2D override = uiViewportOverride(resourcePath, image);
         if (override != null) {
@@ -1758,6 +2705,21 @@ public class GameApplication extends Application {
     }
 
     private Rectangle2D uiViewportOverride(String resourcePath, Image image) {
+        if (MAIN_MENU_START_BUTTON_RESOURCE.equals(resourcePath) || MAIN_MENU_EXIT_BUTTON_RESOURCE.equals(resourcePath)) {
+            return clampedViewport(image, 0, 249, 1536, 440);
+        }
+        if (SETTINGS_BACK_BUTTON_RESOURCE.equals(resourcePath)) {
+            return clampedViewport(image, 204, 118, 1148, 722);
+        }
+        if (SETTINGS_SAVE_EXIT_BUTTON_RESOURCE.equals(resourcePath)) {
+            return clampedViewport(image, 174, 156, 1188, 650);
+        }
+        if (CHARACTER_SELECT_DEPART_BUTTON_RESOURCE.equals(resourcePath)) {
+            return clampedViewport(image, 71, 189, 1397, 452);
+        }
+        if (CHARACTER_SELECT_BACK_BUTTON_RESOURCE.equals(resourcePath)) {
+            return clampedViewport(image, 0, 0, 1536, 497);
+        }
         if (BATTLE_GOLD_RESOURCE.equals(resourcePath)) {
             return clampedViewport(image, 260, 225, 475, 475);
         }
@@ -1848,41 +2810,50 @@ public class GameApplication extends Application {
         return counter;
     }
 
-    private Button createBattleIconButton(String resourcePath, String tooltipText) {
-        Button button = new Button();
-        button.setGraphic(createIconSlot(resourcePath,
+    private StackPane createBattleIconButton(String resourcePath, String tooltipText, Runnable action) {
+        StackPane icon = createIconSlot(resourcePath,
                 BATTLE_ACTION_BUTTON_SIZE,
                 BATTLE_ACTION_BUTTON_SIZE,
                 BATTLE_ACTION_ICON_SIZE,
-                BATTLE_ACTION_ICON_SIZE));
-        button.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+                BATTLE_ACTION_ICON_SIZE);
+        icon.setMouseTransparent(true);
+
+        StackPane button = new StackPane(icon);
+        button.setAlignment(Pos.CENTER);
         button.setPrefSize(BATTLE_ACTION_BUTTON_SIZE, BATTLE_ACTION_BUTTON_SIZE);
         button.setMinSize(BATTLE_ACTION_BUTTON_SIZE, BATTLE_ACTION_BUTTON_SIZE);
         button.setMaxSize(BATTLE_ACTION_BUTTON_SIZE, BATTLE_ACTION_BUTTON_SIZE);
-        button.setTooltip(new Tooltip(tooltipText));
+        button.setPickOnBounds(true);
         button.setStyle(battleIconButtonStyle(false, false));
+        Tooltip.install(button, new Tooltip(tooltipText));
         button.setOnMouseEntered(event -> {
-            button.setScaleX(1.04);
-            button.setScaleY(1.04);
+            icon.setScaleX(1.04);
+            icon.setScaleY(1.04);
             button.setStyle(battleIconButtonStyle(true, false));
         });
         button.setOnMouseExited(event -> {
-            button.setScaleX(1.0);
-            button.setScaleY(1.0);
-            button.setTranslateY(0);
+            icon.setScaleX(1.0);
+            icon.setScaleY(1.0);
+            icon.setTranslateY(0);
             button.setStyle(battleIconButtonStyle(false, false));
         });
         button.setOnMousePressed(event -> {
-            button.setScaleX(0.98);
-            button.setScaleY(0.98);
-            button.setTranslateY(1);
+            icon.setScaleX(0.98);
+            icon.setScaleY(0.98);
+            icon.setTranslateY(1);
             button.setStyle(battleIconButtonStyle(true, true));
         });
         button.setOnMouseReleased(event -> {
-            button.setScaleX(button.isHover() ? 1.04 : 1.0);
-            button.setScaleY(button.isHover() ? 1.04 : 1.0);
-            button.setTranslateY(0);
+            icon.setScaleX(button.isHover() ? 1.04 : 1.0);
+            icon.setScaleY(button.isHover() ? 1.04 : 1.0);
+            icon.setTranslateY(0);
             button.setStyle(battleIconButtonStyle(button.isHover(), false));
+        });
+        button.setOnMouseClicked(event -> {
+            if (action != null) {
+                action.run();
+                event.consume();
+            }
         });
         return button;
     }
@@ -1895,21 +2866,58 @@ public class GameApplication extends Application {
                 + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.90), 4, 0.6, 0, 1);");
 
         playerHeaderHealthLabel = new Label();
-        playerHeaderHealthLabel.setStyle("-fx-text-fill: #d16458;"
+        playerHeaderHealthLabel.setStyle("-fx-text-fill: #fff0df;"
                 + "-fx-font-size: 17px;"
                 + "-fx-font-weight: bold;"
                 + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.90), 4, 0.6, 0, 1);");
-        playerHeaderHealthLabel.setMinSize(86, 24);
-        playerHeaderHealthLabel.setAlignment(Pos.CENTER_LEFT);
+        playerHeaderHealthLabel.setPrefSize(PLAYER_HEADER_HEALTH_BAR_WIDTH, 24);
+        playerHeaderHealthLabel.setMinSize(PLAYER_HEADER_HEALTH_BAR_WIDTH, 24);
+        playerHeaderHealthLabel.setMaxSize(PLAYER_HEADER_HEALTH_BAR_WIDTH, 24);
+        playerHeaderHealthLabel.setAlignment(Pos.CENTER);
+        playerHeaderHealthLabel.setTextAlignment(TextAlignment.CENTER);
 
-        StackPane panel = new StackPane(createUiImageView(BATTLE_PLAYER_FRAME_RESOURCE, 276, 92), playerHeaderHealthLabel);
-        panel.setPrefSize(276, 92);
-        panel.setMinSize(276, 92);
-        panel.setMaxSize(276, 92);
+        ImageView emptyHealth = createRawUiImageView(currentPlayerHeaderHealthEmptyResource(),
+                PLAYER_HEADER_WIDTH,
+                PLAYER_HEADER_HEIGHT);
+        ImageView fullHealth = createRawUiImageView(currentPlayerHeaderHealthFullResource(),
+                PLAYER_HEADER_WIDTH,
+                PLAYER_HEADER_HEIGHT);
+        playerHeaderHealthClip = new Rectangle(PLAYER_HEADER_HEALTH_BAR_LEFT,
+                PLAYER_HEADER_HEALTH_BAR_TOP,
+                PLAYER_HEADER_HEALTH_BAR_WIDTH,
+                PLAYER_HEADER_HEALTH_BAR_HEIGHT);
+        fullHealth.setClip(playerHeaderHealthClip);
+
+        StackPane panel = new StackPane(emptyHealth, fullHealth, playerHeaderHealthLabel);
+        panel.setPrefSize(PLAYER_HEADER_WIDTH, PLAYER_HEADER_HEIGHT);
+        panel.setMinSize(PLAYER_HEADER_WIDTH, PLAYER_HEADER_HEIGHT);
+        panel.setMaxSize(PLAYER_HEADER_WIDTH, PLAYER_HEADER_HEIGHT);
         clipToBounds(panel);
         StackPane.setAlignment(playerHeaderHealthLabel, Pos.TOP_LEFT);
-        StackPane.setMargin(playerHeaderHealthLabel, new Insets(53, 0, 0, 112));
+        StackPane.setMargin(playerHeaderHealthLabel, new Insets(PLAYER_HEADER_HEALTH_BAR_TOP - 3,
+                0,
+                0,
+                PLAYER_HEADER_HEALTH_BAR_LEFT));
         return panel;
+    }
+
+    private String currentPlayerHeaderHealthFullResource() {
+        if (currentPlayableCharacterIs(ASSASSIN_CHARACTER_ID)) {
+            return BATTLE_ASSASSIN_HEADER_HEALTH_FULL_RESOURCE;
+        }
+        return BATTLE_BERSERKER_HEADER_HEALTH_FULL_RESOURCE;
+    }
+
+    private String currentPlayerHeaderHealthEmptyResource() {
+        if (currentPlayableCharacterIs(ASSASSIN_CHARACTER_ID)) {
+            return BATTLE_ASSASSIN_HEADER_HEALTH_EMPTY_RESOURCE;
+        }
+        return BATTLE_BERSERKER_HEADER_HEALTH_EMPTY_RESOURCE;
+    }
+
+    private boolean currentPlayableCharacterIs(String characterId) {
+        RunState run = engine.getRunState();
+        return run != null && characterId.equals(run.getPlayableCharacter().id());
     }
 
     private VBox createPileCounter(String resourcePath, String tooltipText, Label countLabel) {
@@ -2045,51 +3053,59 @@ public class GameApplication extends Application {
         return backgrounds;
     }
 
-    private ProgressBar healthBar() {
-        ProgressBar bar = new ProgressBar(1);
-        bar.setPrefWidth(210);
-        bar.setMinHeight(16);
-        bar.setStyle("-fx-accent: #c94f4f;");
-        return bar;
-    }
-
     private void refreshBattle() {
         BattleState state = engine.getState();
-        playerLabel.setText(state.getPlayer().getName()
-                + "  生命 " + state.getPlayer().getHealth() + "/" + state.getPlayer().getMaxHealth());
-        enemyLabel.setText(state.getEnemy().getName()
-                + "  生命 " + state.getEnemy().getHealth() + "/" + state.getEnemy().getMaxHealth());
+        playerLabel.setText(state.getPlayer().getName());
+        enemyLabel.setText(state.getEnemy().getName());
         playerHeaderNameLabel.setText(state.getPlayer().getName());
-        playerHeaderHealthLabel.setText(state.getPlayer().getHealth() + "/" + state.getPlayer().getMaxHealth());
-        playerHealthBar.setProgress((double) state.getPlayer().getHealth() / state.getPlayer().getMaxHealth());
-        enemyHealthBar.setProgress((double) state.getEnemy().getHealth() / state.getEnemy().getMaxHealth());
-        playerBlockLabel.setText("格挡：" + state.getPlayer().getBlock());
-        enemyBlockLabel.setText("格挡：" + state.getEnemy().getBlock());
+        updatePlayerHeaderHealth(state.getPlayer().getHealth(), state.getPlayer().getMaxHealth());
+        playerVitalsBar.update(state.getPlayer().getHealth(),
+                state.getPlayer().getMaxHealth(),
+                state.getPlayer().getBlock());
+        enemyVitalsBar.update(state.getEnemy().getHealth(),
+                state.getEnemy().getMaxHealth(),
+                state.getEnemy().getBlock());
         intentLabel.setText(enemyIntentText(state));
         energyLabel.setText(state.getEnergy() + "/" + state.getMaxEnergy());
         drawPileCountLabel.setText(String.valueOf(state.getDrawPile().size()));
         discardPileCountLabel.setText(String.valueOf(state.getDiscardPile().size()));
         pileLabel.setText("当前牌组 " + state.getDeck().size() + " 张");
-        statusLabel.setText(statusText(state.getStatus()));
+        statusLabel.setText(battleSceneTitle(state));
 
         refreshHand(state);
         endTurnButton.setDisable(state.getStatus() != GameStatus.IN_PROGRESS);
     }
 
+    private void updatePlayerHeaderHealth(int health, int maxHealth) {
+        int safeMaxHealth = Math.max(1, maxHealth);
+        int safeHealth = clampInt(health, 0, safeMaxHealth);
+        double ratio = clamp((double) safeHealth / safeMaxHealth, 0, 1);
+        playerHeaderHealthLabel.setText(safeHealth + "/" + safeMaxHealth);
+        if (playerHeaderHealthClip != null) {
+            playerHeaderHealthClip.setWidth(PLAYER_HEADER_HEALTH_BAR_WIDTH * ratio);
+        }
+    }
+
     private void refreshHand(BattleState state) {
-        handBox.getChildren().clear();
+        handPane.getChildren().clear();
         if (state.getHand().isEmpty()) {
             Label empty = new Label("没有手牌");
             empty.setStyle("-fx-text-fill: #c8c2b6; -fx-font-size: 15px; -fx-font-weight: bold;");
-            handBox.getChildren().add(empty);
+            empty.layoutXProperty().bind(handPane.widthProperty().subtract(empty.widthProperty()).divide(2));
+            empty.setLayoutY(HAND_CARD_SLOT_HEIGHT * 0.5);
+            handPane.getChildren().add(empty);
             return;
         }
 
         int totalCards = state.getHand().size();
+        double handWidth = currentHandPaneWidth();
+        double cardStep = handCardStep(totalCards, handWidth);
+        double totalWidth = HAND_CARD_WIDTH + cardStep * (totalCards - 1);
+        double startX = HAND_CARD_SIDE_PADDING + (handContentWidth(handWidth) - totalWidth) / 2.0;
         for (int i = 0; i < state.getHand().size(); i++) {
             Card card = state.getHand().get(i);
             int index = i;
-            boolean canPlay = state.getStatus() == GameStatus.IN_PROGRESS && card.getCost() <= state.getEnergy();
+            boolean canPlay = state.getStatus() == GameStatus.IN_PROGRESS && state.effectiveCost(card) <= state.getEnergy();
             StackPane slot = createHandCardSlot(card, index, totalCards, canPlay, () -> {
                 Set<CardVisualEffect> visualEffects = card.getVisualEffects();
                 if (engine.playCard(index)) {
@@ -2097,7 +3113,9 @@ public class GameApplication extends Application {
                 }
                 afterBattleAction();
             });
-            handBox.getChildren().add(slot);
+            slot.setLayoutX(startX + index * cardStep);
+            slot.setLayoutY(0);
+            handPane.getChildren().add(slot);
         }
     }
 
@@ -2107,14 +3125,14 @@ public class GameApplication extends Application {
         double baseViewOrder = Math.abs(index - (totalCards - 1) / 2.0);
 
         StackPane face = cardFace(card);
-        face.setMouseTransparent(true);
         face.setRotate(baseRotate);
         face.setTranslateY(baseTranslateY);
         face.setOpacity(canPlay ? 1.0 : 0.64);
+        face.setStyle("-fx-cursor: hand;");
 
         StackPane slot = new StackPane(face);
         slot.setAlignment(Pos.CENTER);
-        slot.setPickOnBounds(true);
+        slot.setPickOnBounds(false);
         slot.setPrefSize(HAND_CARD_WIDTH, HAND_CARD_SLOT_HEIGHT);
         slot.setMinSize(HAND_CARD_WIDTH, HAND_CARD_SLOT_HEIGHT);
         slot.setMaxSize(HAND_CARD_WIDTH, HAND_CARD_SLOT_HEIGHT);
@@ -2123,7 +3141,7 @@ public class GameApplication extends Application {
         Tooltip.install(slot, new Tooltip(card.getName() + "\n费用：" + card.getCost() + "\n" + card.getDescription()));
 
         slot.setOnMouseClicked(event -> {
-            if (!canPlay || !face.getBoundsInParent().contains(event.getX(), event.getY())) {
+            if (!canPlay) {
                 return;
             }
             playAction.run();
@@ -2322,6 +3340,8 @@ public class GameApplication extends Application {
         template.setSmooth(true);
         template.setCache(true);
 
+        ImageView cardArt = cardArtView(card);
+
         Label cost = new Label(String.valueOf(card.getCost()));
         cost.setMinSize(34, 34);
         cost.setMaxSize(34, 34);
@@ -2354,31 +3374,35 @@ public class GameApplication extends Application {
         Label type = new Label(card.getType().getDisplayName());
         type.setAlignment(Pos.CENTER);
         type.setTextAlignment(TextAlignment.CENTER);
-        type.setMinSize(64, 19);
-        type.setMaxSize(76, 20);
+        type.setMinSize(64, 18);
+        type.setMaxSize(76, 18);
         type.setStyle("-fx-text-fill: " + cardTypeTextColor(card.getRarity()) + ";"
                 + "-fx-font-size: 11px;"
                 + "-fx-font-weight: bold;"
-                + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.82), 3, 0.65, 0, 1);");
+                + "-fx-font-smoothing-type: lcd;"
+                + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.72), 1.2, 0.45, 0, 1);");
         StackPane.setAlignment(type, Pos.BOTTOM_CENTER);
-        StackPane.setMargin(type, new Insets(0, 0, 12, 0));
+        StackPane.setMargin(type, new Insets(0, 0, cardTypeBottomMargin(card.getRarity()), 0));
 
         Label desc = new Label(card.getDescription());
         desc.setWrapText(true);
+        desc.setLineSpacing(2);
         desc.setTextAlignment(TextAlignment.CENTER);
         desc.setAlignment(Pos.CENTER);
         desc.setMaxWidth(HAND_CARD_WIDTH - 42);
-        desc.setMinHeight(64);
-        desc.setMaxHeight(64);
+        desc.setMinHeight(60);
+        desc.setMaxHeight(60);
         desc.setStyle("-fx-text-fill: " + cardDescriptionTextColor(card.getRarity()) + ";"
-                + "-fx-font-size: 12px;"
+                + "-fx-font-size: 13px;"
                 + "-fx-font-weight: bold;"
+                + "-fx-font-smoothing-type: lcd;"
                 + cardDescriptionTextEffect(card.getRarity()));
         StackPane.setAlignment(desc, Pos.BOTTOM_CENTER);
-        StackPane.setMargin(desc, new Insets(0, 20, 36, 20));
+        StackPane.setMargin(desc, new Insets(0, 20, 52, 20));
 
         StackPane face = new StackPane(
                 template,
+                cardArt,
                 name,
                 desc,
                 type,
@@ -2389,6 +3413,33 @@ public class GameApplication extends Application {
         face.setMinSize(HAND_CARD_WIDTH, HAND_CARD_HEIGHT);
         face.setMaxSize(HAND_CARD_WIDTH, HAND_CARD_HEIGHT);
         return face;
+    }
+
+    private ImageView cardArtView(Card card) {
+        Image image = cardArtImage(card.getType());
+        ImageView art = new ImageView(image);
+        art.setViewport(coverViewport(image, HAND_CARD_ART_WIDTH / HAND_CARD_ART_HEIGHT));
+        art.setFitWidth(HAND_CARD_ART_WIDTH);
+        art.setFitHeight(HAND_CARD_ART_HEIGHT);
+        art.setPreserveRatio(false);
+        art.setSmooth(true);
+        art.setCache(true);
+        art.setMouseTransparent(true);
+
+        Rectangle clip = new Rectangle(HAND_CARD_ART_WIDTH, HAND_CARD_ART_HEIGHT);
+        clip.setArcWidth(HAND_CARD_ART_CLIP_ARC);
+        clip.setArcHeight(HAND_CARD_ART_CLIP_ARC);
+        art.setClip(clip);
+
+        StackPane.setAlignment(art, Pos.TOP_CENTER);
+        StackPane.setMargin(art, new Insets(HAND_CARD_ART_TOP_MARGIN, 0, 0, 0));
+        return art;
+    }
+
+    private double cardTypeBottomMargin(CardRarity rarity) {
+        return rarity == CardRarity.COMMON
+                ? COMMON_CARD_TYPE_BOTTOM_MARGIN
+                : DECORATED_CARD_TYPE_BOTTOM_MARGIN;
     }
 
     private Region cardRegion(double width, double height, String style) {
@@ -2421,6 +3472,42 @@ public class GameApplication extends Application {
         };
     }
 
+    private Image cardArtImage(CardType type) {
+        String resourcePath = cardArtResource(type);
+        var resource = GameApplication.class.getResource(resourcePath);
+        if (resource == null) {
+            throw new IllegalStateException("Missing card art: " + resourcePath);
+        }
+        return uiImages.computeIfAbsent(resourcePath, ignored -> new Image(resource.toExternalForm()));
+    }
+
+    private String cardArtResource(CardType type) {
+        return switch (type) {
+            case ATTACK -> ATTACK_CARD_ART_RESOURCE;
+            case DEFENSE, SKILL -> DEFENSE_CARD_ART_RESOURCE;
+            case BUFF, DEBUFF, TACTIC -> BUFF_CARD_ART_RESOURCE;
+        };
+    }
+
+    private Rectangle2D coverViewport(Image image, double targetAspect) {
+        double imageWidth = image.getWidth();
+        double imageHeight = image.getHeight();
+        if (imageWidth <= 0 || imageHeight <= 0 || targetAspect <= 0) {
+            return Rectangle2D.EMPTY;
+        }
+
+        double imageAspect = imageWidth / imageHeight;
+        if (imageAspect > targetAspect) {
+            double width = imageHeight * targetAspect;
+            double x = (imageWidth - width) / 2.0;
+            return new Rectangle2D(x, 0, width, imageHeight);
+        }
+
+        double height = imageWidth / targetAspect;
+        double y = (imageHeight - height) / 2.0;
+        return new Rectangle2D(0, y, imageWidth, height);
+    }
+
     private String cardTitleTextColor(CardRarity rarity) {
         return switch (rarity) {
             case COMMON, LEGENDARY -> "#fff0c8";
@@ -2431,9 +3518,9 @@ public class GameApplication extends Application {
 
     private String cardDescriptionTextColor(CardRarity rarity) {
         return switch (rarity) {
-            case COMMON -> "#211c16";
+            case COMMON -> "#f0d49a";
             case UNCOMMON, RARE -> "#e9f8ff";
-            case LEGENDARY -> "#2b1a0b";
+            case LEGENDARY -> "#f7dfad";
             case SPECIAL -> "#ece9f1";
         };
     }
@@ -2457,8 +3544,8 @@ public class GameApplication extends Application {
 
     private String cardDescriptionTextEffect(CardRarity rarity) {
         return switch (rarity) {
-            case COMMON, LEGENDARY -> "-fx-effect: dropshadow(gaussian, rgba(255, 245, 215, 0.46), 1.4, 0.25, 0, 0);";
-            case UNCOMMON, RARE, SPECIAL -> "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.78), 2, 0.6, 0, 1);";
+            case COMMON, LEGENDARY -> "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.86), 1.2, 0.45, 0, 1);";
+            case UNCOMMON, RARE, SPECIAL -> "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.86), 1.4, 0.5, 0, 1);";
         };
     }
 
@@ -2550,19 +3637,12 @@ public class GameApplication extends Application {
         return root;
     }
 
-    private String characterCardStyle(boolean selected) {
-        String background = selected
-                ? "linear-gradient(to bottom, #2b303b, #222833 52%, #34251f)"
-                : "linear-gradient(to bottom, #20242d, #191d25 52%, #211918)";
-        String border = selected ? "#f2c078" : "#3d4454";
+    private String characterChoiceStyle(boolean selected) {
         String shadow = selected
-                ? "dropshadow(gaussian, rgba(242, 192, 120, 0.34), 18, 0.28, 0, 4)"
-                : "dropshadow(gaussian, rgba(0, 0, 0, 0.35), 10, 0.2, 0, 3)";
-        return "-fx-background-color: " + background + ";"
-                + "-fx-border-color: " + border + ";"
-                + "-fx-border-width: 2;"
-                + "-fx-border-radius: 8;"
-                + "-fx-background-radius: 8;"
+                ? "dropshadow(gaussian, rgba(242, 192, 120, 0.30), 18, 0.24, 0, 5)"
+                : "dropshadow(gaussian, rgba(0, 0, 0, 0.28), 8, 0.16, 0, 3)";
+        return "-fx-background-color: transparent;"
+                + "-fx-border-color: transparent;"
                 + "-fx-padding: 0;"
                 + "-fx-cursor: hand;"
                 + "-fx-effect: " + shadow + ";";
@@ -2611,6 +3691,26 @@ public class GameApplication extends Application {
             case DEFEAT -> "状态：失败";
             case REWARD_CLAIMED -> "状态：奖励已领取";
         };
+    }
+
+    private String battleSceneTitle(BattleState state) {
+        if (state == null) {
+            return "暗城遭遇";
+        }
+        if (state.getStatus() == GameStatus.VICTORY) {
+            return "战斗胜利";
+        }
+        if (state.getStatus() == GameStatus.DEFEAT) {
+            return "远征失败";
+        }
+        if (state.getStatus() == GameStatus.REWARD_CLAIMED) {
+            return "领取奖励";
+        }
+
+        if (isBossBattle()) {
+            return "王座决战";
+        }
+        return "暗城遭遇";
     }
 
     private String runPhaseText(RunPhase phase) {
@@ -2858,6 +3958,27 @@ public class GameApplication extends Application {
         };
     }
 
+    private double currentHandPaneWidth() {
+        double width = handPane == null ? 0 : handPane.getWidth();
+        if (width <= HAND_CARD_WIDTH) {
+            double sceneWidth = stage != null && stage.getScene() != null ? stage.getScene().getWidth() : 1200;
+            width = sceneWidth - 560;
+        }
+        return Math.max(width, HAND_CARD_WIDTH + HAND_CARD_SIDE_PADDING * 2);
+    }
+
+    private double handContentWidth(double handWidth) {
+        return Math.max(HAND_CARD_WIDTH, handWidth - HAND_CARD_SIDE_PADDING * 2);
+    }
+
+    private double handCardStep(int totalCards, double handWidth) {
+        if (totalCards <= 1) {
+            return 0;
+        }
+        double fitStep = (handContentWidth(handWidth) - HAND_CARD_WIDTH) / (totalCards - 1);
+        return Math.max(0, Math.min(HAND_CARD_PREFERRED_STEP, fitStep));
+    }
+
     private double cardRotation(int index, int totalCards) {
         if (totalCards <= 1) {
             return 0;
@@ -2908,15 +4029,6 @@ public class GameApplication extends Application {
                 + "-fx-effect: " + shadow + ";";
     }
 
-    private String battleModalPanelStyle() {
-        return "-fx-background-color: linear-gradient(to bottom, rgba(31, 24, 25, 0.98), rgba(12, 10, 14, 0.98));"
-                + "-fx-border-color: rgba(206, 153, 88, 0.78) rgba(91, 25, 40, 0.86) rgba(45, 13, 23, 0.92) rgba(126, 88, 156, 0.74);"
-                + "-fx-border-width: 2;"
-                + "-fx-border-radius: 8;"
-                + "-fx-background-radius: 8;"
-                + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.78), 30, 0.34, 0, 8);";
-    }
-
     private String primaryButtonStyle() {
         return "-fx-background-color: #c96c36;"
                 + "-fx-text-fill: #1d1712;"
@@ -2934,6 +4046,13 @@ public class GameApplication extends Application {
                 + "-fx-padding: 8;";
     }
 
+    private String settingsImageButtonStyle() {
+        return "-fx-background-color: transparent;"
+                + "-fx-border-color: transparent;"
+                + "-fx-padding: 0;"
+                + "-fx-cursor: hand;";
+    }
+
     private String disabledButtonStyle() {
         return "-fx-background-color: #242832;"
                 + "-fx-text-fill: #8f948f;"
@@ -2945,5 +4064,13 @@ public class GameApplication extends Application {
 
     private String sectionTitleStyle() {
         return "-fx-text-fill: #f2c078; -fx-font-size: 17px; -fx-font-weight: bold;";
+    }
+
+    private String battleInfoTitleStyle() {
+        return "-fx-text-fill: #f1d6a0;"
+                + "-fx-font-family: \"STXingkai\", \"STKaiti\", \"KaiTi\", \"FangSong\", \"Serif\";"
+                + "-fx-font-size: 24px;"
+                + "-fx-font-weight: bold;"
+                + "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.95), 5, 0.65, 0, 1);";
     }
 }

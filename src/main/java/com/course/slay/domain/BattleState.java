@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Objects;
 
 public class BattleState {
+    private static final int NO_KNIFE_DAMAGE_OVERRIDE = -1;
+
     private final Player player;
     private final Enemy enemy;
     private final List<String> battleLog;
@@ -19,8 +21,14 @@ public class BattleState {
     private boolean skipNextEnemyTurn;
     private int energyPerDiscardThisTurn;
     private int attackCardsPlayedThisTurn;
+    private int cardsPlayedThisBattle;
+    private int nextCardCostReduction;
     private int strengthOnDamage;
     private int blockOnDamage;
+    private boolean retainBlockNextTurn;
+    private int knifeDamageBonus;
+    private int knifeDamageThisTurn = NO_KNIFE_DAMAGE_OVERRIDE;
+    private int knifeCardsAtTurnStart;
 
     public BattleState(Player player, Enemy enemy) {
         this.player = Objects.requireNonNull(player, "player");
@@ -82,6 +90,8 @@ public class BattleState {
         turnNumber++;
         energyPerDiscardThisTurn = 0;
         attackCardsPlayedThisTurn = 0;
+        nextCardCostReduction = 0;
+        knifeDamageThisTurn = NO_KNIFE_DAMAGE_OVERRIDE;
     }
 
     public int getEnergy() {
@@ -96,6 +106,22 @@ public class BattleState {
         player.spendEnergy(amount);
     }
 
+    public int effectiveCost(Card card) {
+        Objects.requireNonNull(card, "card");
+        return Math.max(0, card.getCost() - nextCardCostReduction);
+    }
+
+    public void consumeNextCardCostReduction() {
+        nextCardCostReduction = 0;
+    }
+
+    public void reduceNextCardCost(int amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException("amount must not be negative");
+        }
+        nextCardCostReduction += amount;
+    }
+
     public GameStatus getStatus() {
         return status;
     }
@@ -106,6 +132,16 @@ public class BattleState {
 
     public void skipNextEnemyTurn() {
         skipNextEnemyTurn = true;
+    }
+
+    public void retainBlockNextTurn() {
+        retainBlockNextTurn = true;
+    }
+
+    public boolean consumeRetainBlockNextTurn() {
+        boolean value = retainBlockNextTurn;
+        retainBlockNextTurn = false;
+        return value;
     }
 
     public boolean consumeSkipNextEnemyTurn() {
@@ -126,13 +162,53 @@ public class BattleState {
     }
 
     public void recordPlayedCard(CardType type) {
+        cardsPlayedThisBattle++;
         if (type == CardType.ATTACK) {
             attackCardsPlayedThisTurn++;
         }
     }
 
+    public int getCardsPlayedThisBattle() {
+        return cardsPlayedThisBattle;
+    }
+
     public boolean hasPlayedAttackThisTurn() {
         return attackCardsPlayedThisTurn > 0;
+    }
+
+    public int knifeDamage(int baseDamage) {
+        if (baseDamage < 0) {
+            throw new IllegalArgumentException("baseDamage must not be negative");
+        }
+        if (knifeDamageThisTurn >= 0) {
+            return knifeDamageThisTurn;
+        }
+        return baseDamage + knifeDamageBonus;
+    }
+
+    public void addKnifeDamageBonus(int amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException("amount must not be negative");
+        }
+        knifeDamageBonus += amount;
+    }
+
+    public void setKnifeDamageThisTurn(int amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException("amount must not be negative");
+        }
+        knifeDamageThisTurn = amount;
+    }
+
+    public void addKnifeCardsAtTurnStart(int amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException("amount must not be negative");
+        }
+        knifeCardsAtTurnStart += amount;
+    }
+
+    public int getKnifeCardsAtTurnStart() {
+        return knifeCardsAtTurnStart;
     }
 
     public void addOnDamageBuff(int strength, int block) {

@@ -167,7 +167,7 @@ class GameEngineTest {
 
     @Test
     void rewardChoicesUseConfiguredRarityWeights() {
-        GameEngine engine = new GameEngine(new FixedRandom(0, 0, 60, 0, 90, 0));
+        GameEngine engine = new GameEngine(new FixedRandom(0, 0, 60, 0, 70, 0));
         BattleState state = engine.startBattle(
                 testPlayer(),
                 passiveEnemy(10),
@@ -178,8 +178,8 @@ class GameEngineTest {
         assertTrue(engine.playCard(0));
 
         assertEquals(CardRarity.COMMON, state.getRewardChoices().get(0).getRarity());
-        assertEquals(CardRarity.UNCOMMON, state.getRewardChoices().get(1).getRarity());
-        assertEquals(CardRarity.RARE, state.getRewardChoices().get(2).getRarity());
+        assertEquals(CardRarity.RARE, state.getRewardChoices().get(1).getRarity());
+        assertEquals(CardRarity.LEGENDARY, state.getRewardChoices().get(2).getRarity());
     }
 
     @Test
@@ -315,12 +315,70 @@ class GameEngineTest {
     }
 
     @Test
+    void assassinBladeDanceAddsKnifeCardsToHand() {
+        GameEngine engine = new GameEngine(new Random(1));
+        BattleState state = engine.startBattle(
+                testPlayer(),
+                passiveEnemy(40),
+                List.of(CardFactory.assassinBladeDance()),
+                false
+        );
+
+        assertTrue(engine.playCard(0));
+
+        assertEquals(3, state.getHand().stream().filter(card -> card.getId().equals("assassin_knife")).count());
+        assertTrue(engine.playCard(0));
+        assertEquals(37, state.getEnemy().getHealth());
+    }
+
+    @Test
+    void assassinPrecisionBoostsKnifeDamageAndFinisherOverridesItThisTurn() {
+        GameEngine engine = new GameEngine(new Random(1));
+        BattleState state = engine.startBattle(
+                testPlayer(),
+                passiveEnemy(50),
+                List.of(
+                        CardFactory.assassinPrecision(),
+                        CardFactory.assassinBladeDance(),
+                        CardFactory.assassinFinisher()
+                ),
+                false
+        );
+        state.setEnergy(99);
+
+        assertTrue(engine.playCard(0));
+        assertTrue(engine.playCard(0));
+        assertTrue(engine.playCard(1));
+        assertTrue(engine.playCard(0));
+        assertTrue(engine.playCard(0));
+
+        assertEquals(37, state.getEnemy().getHealth());
+    }
+
+    @Test
+    void assassinInfiniteBladesAddsKnifeAtNextTurnStart() {
+        GameEngine engine = new GameEngine(new Random(1));
+        BattleState state = engine.startBattle(
+                testPlayer(),
+                passiveEnemy(40),
+                List.of(CardFactory.assassinInfiniteBlades()),
+                false
+        );
+
+        assertTrue(engine.playCard(0));
+        engine.endTurn();
+
+        assertEquals(2, state.getTurnNumber());
+        assertTrue(state.getHand().stream().anyMatch(card -> card.getId().equals("assassin_knife")));
+    }
+
+    @Test
     void enrageTriggersWhenPlayerTakesHealthDamage() {
         GameEngine engine = new GameEngine(new Random(1));
         BattleState state = engine.startBattle(
                 testPlayer(),
                 attackerEnemy(6),
-                List.of(CardFactory.enrage()),
+                List.of(CardFactory.berserkerEnrage()),
                 false
         );
 
@@ -330,6 +388,107 @@ class GameEngineTest {
         assertEquals(34, state.getPlayer().getHealth());
         assertEquals(1, state.getPlayer().getStrength());
         assertTrue(state.getBattleLog().stream().anyMatch(line -> line.contains("受伤触发")));
+    }
+
+    @Test
+    void berserkerBashAppliesVulnerableToNextDamage() {
+        GameEngine engine = new GameEngine(new Random(1));
+        BattleState state = engine.startBattle(
+                testPlayer(),
+                passiveEnemy(40),
+                List.of(CardFactory.berserkerBash(), CardFactory.berserkerStrike()),
+                false
+        );
+
+        assertTrue(engine.playCard(0));
+        assertTrue(engine.playCard(0));
+
+        assertEquals(26, state.getEnemy().getHealth());
+    }
+
+    @Test
+    void berserkerPierceIgnoresBlock() {
+        GameEngine engine = new GameEngine(new Random(1));
+        Enemy enemy = passiveEnemy(20);
+        enemy.gainBlock(10);
+        BattleState state = engine.startBattle(
+                testPlayer(),
+                enemy,
+                List.of(CardFactory.berserkerPierce()),
+                false
+        );
+
+        assertTrue(engine.playCard(0));
+
+        assertEquals(14, state.getEnemy().getHealth());
+        assertEquals(10, state.getEnemy().getBlock());
+    }
+
+    @Test
+    void berserkerVoidLimitsNextIncomingDamageToOne() {
+        GameEngine engine = new GameEngine(new Random(1));
+        BattleState state = engine.startBattle(
+                testPlayer(),
+                attackerEnemy(12),
+                List.of(CardFactory.berserkerVoid()),
+                false
+        );
+
+        assertTrue(engine.playCard(0));
+        engine.endTurn();
+
+        assertEquals(39, state.getPlayer().getHealth());
+    }
+
+    @Test
+    void berserkerTranquilityDiscountsTheNextCard() {
+        GameEngine engine = new GameEngine(new Random(1));
+        BattleState state = engine.startBattle(
+                testPlayer(),
+                passiveEnemy(50),
+                List.of(CardFactory.berserkerTranquility(), CardFactory.berserkerPerfectStrike()),
+                false
+        );
+
+        assertTrue(engine.playCard(0));
+        assertEquals(2, state.getEnergy());
+        assertTrue(engine.playCard(0));
+
+        assertEquals(1, state.getEnergy());
+        assertEquals(34, state.getEnemy().getHealth());
+    }
+
+    @Test
+    void berserkerAshStrikeScalesWithCardsPlayedThisBattle() {
+        GameEngine engine = new GameEngine(new Random(1));
+        BattleState state = engine.startBattle(
+                testPlayer(),
+                passiveEnemy(50),
+                List.of(CardFactory.berserkerStrike(), CardFactory.berserkerAshStrike()),
+                false
+        );
+
+        assertTrue(engine.playCard(0));
+        assertTrue(engine.playCard(0));
+
+        assertEquals(36, state.getEnemy().getHealth());
+    }
+
+    @Test
+    void berserkerImmovableRetainsRemainingBlockForNextTurn() {
+        GameEngine engine = new GameEngine(new Random(1));
+        BattleState state = engine.startBattle(
+                testPlayer(),
+                attackerEnemy(8),
+                List.of(CardFactory.berserkerImmovable()),
+                false
+        );
+
+        assertTrue(engine.playCard(0));
+        engine.endTurn();
+
+        assertEquals(22, state.getPlayer().getBlock());
+        assertEquals(40, state.getPlayer().getHealth());
     }
 
     @Test

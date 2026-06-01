@@ -38,7 +38,8 @@ public class GameEngine {
     private static final List<RarityWeight> REWARD_RARITY_WEIGHTS = List.of(
             new RarityWeight(CardRarity.COMMON, 60),
             new RarityWeight(CardRarity.UNCOMMON, 30),
-            new RarityWeight(CardRarity.RARE, 10)
+            new RarityWeight(CardRarity.RARE, 10),
+            new RarityWeight(CardRarity.LEGENDARY, 5)
     );
 
     private final Random random;
@@ -176,12 +177,14 @@ public class GameEngine {
         }
 
         Card card = state.getHand().get(handIndex);
-        if (card.getCost() > state.getEnergy()) {
+        int effectiveCost = state.effectiveCost(card);
+        if (effectiveCost > state.getEnergy()) {
             state.addLog("能量不足，无法打出【" + card.getName() + "】。");
             return false;
         }
 
-        state.spendEnergy(card.getCost());
+        state.spendEnergy(effectiveCost);
+        state.consumeNextCardCostReduction();
         state.getHand().remove(handIndex);
         state.addLog("打出【" + card.getName() + "】。");
         card.play(new PlayerEffectContext());
@@ -354,13 +357,28 @@ public class GameEngine {
     }
 
     private void startPlayerTurn() {
-        state.getPlayer().resetBlock();
+        if (state.consumeRetainBlockNextTurn()) {
+            state.addLog("格挡没有在回合开始时消散。");
+        } else {
+            state.getPlayer().resetBlock();
+        }
         state.getPlayer().setEnergy(state.getPlayer().getMaxEnergy());
         state.nextTurn();
         state.addLog("第 " + state.getTurnNumber() + " 回合开始，恢复 "
                 + state.getPlayer().getMaxEnergy() + " 点能量。");
+        addKnifeCardsToHand(state.getKnifeCardsAtTurnStart());
         drawCards(state.getPlayer(), state.getPlayer().getHandSize());
         prepareEnemyIntent();
+    }
+
+    private void addKnifeCardsToHand(int amount) {
+        if (amount <= 0) {
+            return;
+        }
+        for (int i = 0; i < amount; i++) {
+            state.getHand().add(CardFactory.assassinKnife());
+        }
+        state.addLog("获得 " + amount + " 张【小刀】。");
     }
 
     private void discardHand() {
@@ -590,7 +608,7 @@ public class GameEngine {
 
     private List<Card> currentRewardPool() {
         if (runState == null) {
-            return CardFactory.rewardPool();
+            return CharacterCatalog.defaultCharacter().createRewardPool();
         }
         return runState.getPlayableCharacter().createRewardPool();
     }
@@ -605,6 +623,21 @@ public class GameEngine {
             int blocked = Math.max(0, beforeBlock - state.getEnemy().getBlock());
             int healthDamage = Math.max(0, beforeHealth - state.getEnemy().getHealth());
             state.addLog("造成 " + healthDamage + " 点生命伤害，敌人格挡抵消 " + blocked + " 点。");
+        }
+
+        @Override
+        public void dealDamageToOpponentIgnoringBlock(int amount) {
+            int beforeHealth = state.getEnemy().getHealth();
+            int totalDamage = amount + state.getPlayer().getStrength();
+            state.getEnemy().takeDamageIgnoringBlock(totalDamage);
+            int healthDamage = Math.max(0, beforeHealth - state.getEnemy().getHealth());
+            state.addLog("无视格挡造成 " + healthDamage + " 点生命伤害。");
+        }
+
+        @Override
+        public void addVulnerableToOpponent(int stacks) {
+            state.getEnemy().addVulnerable(stacks);
+            state.addLog("敌人获得 " + stacks + " 层易伤。");
         }
 
         @Override
@@ -624,6 +657,36 @@ public class GameEngine {
         }
 
         @Override
+        public int cardsPlayedThisBattle() {
+            return state.getCardsPlayedThisBattle();
+        }
+
+        @Override
+        public void addKnifeCardsToHand(int amount) {
+            GameEngine.this.addKnifeCardsToHand(amount);
+        }
+
+        @Override
+        public int knifeDamage(int baseDamage) {
+            return state.knifeDamage(baseDamage);
+        }
+
+        @Override
+        public void addKnifeDamageBonus(int amount) {
+            state.addKnifeDamageBonus(amount);
+        }
+
+        @Override
+        public void setKnifeDamageThisTurn(int amount) {
+            state.setKnifeDamageThisTurn(amount);
+        }
+
+        @Override
+        public void addKnifeCardsAtTurnStart(int amount) {
+            state.addKnifeCardsAtTurnStart(amount);
+        }
+
+        @Override
         public void drawCards(int amount) {
             GameEngine.this.drawCards(amount);
         }
@@ -632,6 +695,12 @@ public class GameEngine {
         public void gainEnergy(int amount) {
             state.setEnergy(state.getEnergy() + amount);
             state.addLog("获得 " + amount + " 点能量。");
+        }
+
+        @Override
+        public void reduceNextCardCost(int amount) {
+            state.reduceNextCardCost(amount);
+            state.addLog("下一张牌能量消耗减少 " + amount + " 点。");
         }
 
         @Override
@@ -665,6 +734,18 @@ public class GameEngine {
         @Override
         public void skipNextEnemyTurn() {
             state.skipNextEnemyTurn();
+        }
+
+        @Override
+        public void limitNextDamageTakenToOne() {
+            state.getPlayer().limitNextDamageToOne();
+            state.addLog("下一次受到的伤害变为 1 点。");
+        }
+
+        @Override
+        public void retainBlockNextTurn() {
+            state.retainBlockNextTurn();
+            state.addLog("本回合格挡不会消散。");
         }
 
         @Override

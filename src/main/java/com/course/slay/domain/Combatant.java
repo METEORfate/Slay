@@ -22,6 +22,8 @@ public class Combatant {
     private int energy;
     private int temporaryStrength;
     private int permanentStrength;
+    private int vulnerable;
+    private boolean limitNextDamageToOne;
 
     public Combatant(String name, int maxHealth, List<Card> deck, int maxEnergy, int handSize) {
         if (maxHealth <= 0) {
@@ -60,6 +62,8 @@ public class Combatant {
         discardPile.clear();
         energy = 0;
         temporaryStrength = 0;
+        vulnerable = 0;
+        limitNextDamageToOne = false;
     }
 
     public String getName() {
@@ -106,6 +110,10 @@ public class Combatant {
         return temporaryStrength + permanentStrength;
     }
 
+    public int getVulnerable() {
+        return vulnerable;
+    }
+
     public void setEnergy(int energy) {
         if (energy < 0) {
             throw new IllegalArgumentException("energy must not be negative");
@@ -148,13 +156,34 @@ public class Combatant {
         permanentStrength += amount;
     }
 
+    public void addVulnerable(int stacks) {
+        if (stacks < 0) {
+            throw new IllegalArgumentException("stacks must not be negative");
+        }
+        vulnerable += stacks;
+    }
+
+    public void limitNextDamageToOne() {
+        limitNextDamageToOne = true;
+    }
+
     public int takeDamage(int amount) {
         if (amount < 0) {
             throw new IllegalArgumentException("amount must not be negative");
         }
-        int blocked = Math.min(block, amount);
+        int adjustedAmount = adjustedIncomingDamage(amount);
+        int blocked = Math.min(block, adjustedAmount);
         block -= blocked;
-        int healthDamage = amount - blocked;
+        int healthDamage = adjustedAmount - blocked;
+        health = Math.max(0, health - healthDamage);
+        return healthDamage;
+    }
+
+    public int takeDamageIgnoringBlock(int amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException("amount must not be negative");
+        }
+        int healthDamage = adjustedIncomingDamage(amount);
         health = Math.max(0, health - healthDamage);
         return healthDamage;
     }
@@ -183,5 +212,22 @@ public class Combatant {
 
     public boolean isAlive() {
         return health > 0;
+    }
+
+    private int adjustedIncomingDamage(int amount) {
+        if (amount <= 0) {
+            return 0;
+        }
+
+        int adjustedAmount = amount;
+        if (vulnerable > 0) {
+            adjustedAmount = (int) Math.ceil(adjustedAmount * 1.5);
+            vulnerable--;
+        }
+        if (limitNextDamageToOne) {
+            adjustedAmount = Math.min(adjustedAmount, 1);
+            limitNextDamageToOne = false;
+        }
+        return adjustedAmount;
     }
 }
